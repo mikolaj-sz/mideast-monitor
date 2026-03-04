@@ -2,63 +2,40 @@
 import os
 import re
 import json
-import urllib.request
 from datetime import datetime, timezone
-from groq import Groq
+import urllib.request
 
-FEEDS = [
-    "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml",
-    "https://rss.nytimes.com/services/xml/rss/nyt/MiddleEast.xml",
-    "https://www.aljazeera.com/xml/rss/all.xml",
-    "https://feeds.reuters.com/reuters/topNews",
-]
+def call_gemini(prompt):
+    api_key = os.environ["GEMINI_API_KEY"]
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+    body = json.dumps({
+        "contents": [{"parts": [{"text": prompt}]}],
+        "tools": [{"google_search": {}}],
+        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 3000}
+    }).encode()
+    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return json.loads(r.read())
 
-KEYWORDS = [
-    "iran", "israel", "middle east", "hormuz", "hezbollah",
-    "tehran", "gaza", "lebanon", "houthi", "irgc", "khamenei",
-    "nuclear", "oil", "crude", "bliski wschód"
-]
-
-def fetch_rss(url):
+def extract_text(response):
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=10) as r:
-            content = r.read().decode("utf-8", errors="ignore")
-        titles = re.findall(r"<title><!\[CDATA\[(.*?)\]\]></title>|<title>(.*?)</title>", content)
-        descs  = re.findall(r"<description><!\[CDATA\[(.*?)\]\]></description>|<description>(.*?)</description>", content)
-        titles = [a or b for a, b in titles]
-        descs  = [a or b for a, b in descs]
-        return list(zip(titles[1:], descs[1:]))
-    except Exception as e:
-        print(f"RSS error {url}: {e}")
-        return []
+        return response["candidates"][0]["content"]["parts"][0]["text"]
+    except Exception:
+        print("Full response:", json.dumps(response, indent=2)[:1000])
+        raise
 
-def collect_news():
-    all_items = []
-    for feed in FEEDS:
-        all_items.extend(fetch_rss(feed))
-    relevant = []
-    seen = set()
-    for title, desc in all_items:
-        text = (title + " " + desc).lower()
-        if any(kw in text for kw in KEYWORDS):
-            key = title.strip()[:60]
-            if key not in seen:
-                seen.add(key)
-                clean = re.sub(r"<[^>]+>", "", desc).strip()[:200]
-                relevant.append(f"• {title.strip()} — {clean}")
-    return relevant[:30]
-
-def fetch_analysis(news_items):
-    client = Groq(api_key=os.environ["GROQ_API_KEY"])
-    news_text = "\n".join(news_items) if news_items else "Brak świeżych newsów."
+def fetch_analysis():
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    prompt = f"""Jesteś analitykiem geopolitycznym. Dziś jest {today}.
 
-    prompt = f"""Jesteś analitykiem geopolitycznym. Na podstawie newsów z {today} wygeneruj raport o sytuacji na Bliskim Wschodzie.
+Wyszukaj najnowsze informacje o:
+1. Konflikcie USA-Izrael-Iran (ostatnie 24h)
+2. Sytuacji w Libanie i Hezbollah
+3. Cieśninie Ormuz i cenach ropy
+4. Sukcesji po Chamenej'im
+5. Aktualnych cenach Brent i WTI
 
-NEWSY:
-{news_text}
-
+Na podstawie znalezionych informacji wygeneruj raport.
 Zwróć WYŁĄCZNIE czysty JSON (bez markdown, bez backtick-ów):
 {{
   "day_number": <liczba dni od 28 lutego 2026>,
@@ -68,7 +45,7 @@ Zwróć WYŁĄCZNIE czysty JSON (bez markdown, bez backtick-ów):
     {{"label": "...", "value": "...", "trend": "up|down|neutral"}}
   ],
   "timeline_today": [
-    {{"time": "Rano/Południe/Wieczór", "title": "...", "detail": "...", "is_new": true}}
+    {{"time": "Rano/Południe/Wieczór lub HH:MM UTC", "title": "...", "detail": "...", "is_new": true}}
   ],
   "actors": [
     {{"name": "...", "status": "active|passive|escalating|de-escalating", "summary": "..."}}
@@ -82,21 +59,18 @@ Zwróć WYŁĄCZNIE czysty JSON (bez markdown, bez backtick-ów):
   "energy_markets": {{
     "brent": "...", "wti": "...", "hormuz_status": "...", "lng_europe": "..."
   }},
-  "sources_used": ["BBC", "Al Jazeera", "Reuters", "NYT"],
+  "sources_used": ["..."],
   "alert_level": "krytyczny|wysoki|podwyższony|normalny",
   "alert_message": "Jedno zdanie opisujące główne zagrożenie"
 }}"""
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=3000,
-        temperature=0.3,
-    )
-    text = response.choices[0].message.content.strip()
-    text = re.sub(r"^```json\s*", "", text)
-    text = re.sub(r"^```\s*", "", text)
-    text = re.sub(r"\s*```$", "", text)
+    print("Calling Gemini with Google Search...")
+    response = call_gemini(prompt)
+    text = extract_text(response)
+    print(f"Response length: {len(text)} chars")
+    text = re.sub(r"^```json\s*", "", text.strip())
+    text = re.sub(r"^```\s*", "", text.strip())
+    text = re.sub(r"\s*```$", "", text.strip())
     return json.loads(text)
 
 def render_html(data):
@@ -164,7 +138,7 @@ def render_html(data):
 <title>Monitor Bliskiego Wschodu – Dzień {day_num}</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-:root{{--bg:#f7f7f5;--surface:#ffffff;--border:#e5e5e0;--accent:#c0392b;--accent2:#d35400;--text:#1a1a1a;--muted:#6b7280;--header-bg:#ffffff;}}
+:root{{--bg:#f7f7f5;--surface:#ffffff;--border:#e5e5e0;--accent:#c0392b;--accent2:#d35400;--text:#1a1a1a;--muted:#6b7280;}}
 *{{margin:0;padding:0;box-sizing:border-box;}}
 body{{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.7;}}
 header{{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.96);backdrop-filter:blur(12px);box-shadow:0 1px 3px rgba(0,0,0,0.06);}}
@@ -275,15 +249,13 @@ footer{{border-top:1px solid var(--border);padding:24px 48px;text-align:center;f
     </div>
   </div>
 </div>
-<footer>⬡ Monitor Bliskiego Wschodu · RSS + Groq AI · {now_utc}</footer>
+<footer>⬡ Monitor Bliskiego Wschodu · Gemini AI + Google Search · {now_utc}</footer>
 </body>
 </html>"""
 
 def main():
-    print("Fetching RSS feeds...")
-    news = collect_news()
-    print(f"Found {len(news)} relevant items")
-    data = fetch_analysis(news)
+    print("Fetching analysis from Gemini with Google Search...")
+    data = fetch_analysis()
     html = render_html(data)
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html)

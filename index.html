@@ -1,1 +1,123 @@
-<html><body style="background:#0d0d14;color:#e2e8f0;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center"><h1 style="color:#e94560">⬡ Monitor Bliskiego Wschodu</h1><p>Pierwszy raport jest generowany...</p></body></html>
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="refresh" content="18000">
+<title>Monitor Bliskiego Wschodu – Dzień 5</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d0d14;--surface:#13131f;--border:#1e1e30;--accent:#e94560;--accent2:#f7a541;--text:#e2e8f0;--muted:#718096;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.7;}
+header{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100;background:rgba(13,13,20,0.95);backdrop-filter:blur(12px);}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:15px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);}
+.header-meta{font-size:12px;color:var(--muted);}
+.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-right:6px;animation:blink 1.4s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.hero{padding:72px 48px 48px;max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 320px;gap:48px;align-items:start;}
+.day-label{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--accent);font-family:'Syne',sans-serif;margin-bottom:16px;}
+.hero-headline{font-family:'Syne',sans-serif;font-size:clamp(26px,4vw,44px);font-weight:800;line-height:1.15;margin-bottom:20px;}
+.hero-summary{font-size:16px;color:#a0aec0;font-weight:300;line-height:1.8;margin-bottom:24px;}
+.alert-box{border-radius:10px;padding:16px 20px;border-left:3px solid #e94560;background:#e9456018;margin-bottom:20px;}
+.al-level{font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:'Syne',sans-serif;font-weight:700;color:#e94560;margin-bottom:4px;}
+.al-msg{font-size:14px;color:var(--text);}
+.stats-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;position:relative;overflow:hidden;}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);}
+.stat-value{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px;}
+.stat-arrow{position:absolute;top:14px;right:14px;font-size:14px;}
+.energy-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+.en-item{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;}
+.en-val{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;color:var(--accent2);}
+.en-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px;}
+.main{max-width:1100px;margin:0 auto;padding:0 48px 80px;display:grid;grid-template-columns:1fr 320px;gap:28px;}
+.col-left>*+*,.col-right>*+*{margin-top:24px;}
+.section{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.section-head{padding:14px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.section-head h2{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;}
+.sh-accent{width:4px;height:16px;background:var(--accent);border-radius:2px;flex-shrink:0;}
+.section-body{padding:18px 22px;}
+.tl-item{display:flex;gap:14px;padding:11px 0;border-bottom:1px solid var(--border);}
+.tl-item:last-child{border:none;}
+.tl-time{flex-shrink:0;width:75px;font-size:11px;font-weight:600;color:var(--accent);font-family:'Syne',sans-serif;padding-top:2px;}
+.tl-title{font-size:14px;font-weight:500;margin-bottom:3px;}
+.tl-detail{font-size:13px;color:var(--muted);line-height:1.6;}
+.new-tag{background:var(--accent);color:white;font-size:9px;font-weight:700;letter-spacing:1px;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle;}
+.actor-card{padding:12px 0;border-bottom:1px solid var(--border);}
+.actor-card:last-child{border:none;}
+.actor-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+.actor-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;}
+.actor-status{font-size:10px;letter-spacing:1px;font-family:'Syne',sans-serif;font-weight:700;}
+.actor-summary{font-size:13px;color:var(--muted);line-height:1.6;}
+.risk-table{width:100%;border-collapse:collapse;font-size:13px;}
+.risk-table th{text-align:left;padding:8px 10px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);}
+.risk-table td{padding:9px 10px;border-bottom:1px solid var(--border);}
+.risk-table tr:last-child td{border:none;}
+.badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.5px;}
+.scenario-card{padding:14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;}
+.scenario-card:last-child{margin:0;}
+.sc-label{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;margin-bottom:3px;}
+.sc-prob{font-size:11px;color:var(--accent);font-weight:600;letter-spacing:.5px;margin-bottom:5px;}
+.sc-desc{font-size:13px;color:var(--muted);line-height:1.6;}
+.sources-strip{padding:14px 22px;font-size:11px;color:var(--muted);line-height:2;}
+.sources-strip span{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:1px 8px;margin:2px;}
+footer{border-top:1px solid var(--border);padding:24px 48px;text-align:center;font-size:12px;color:var(--muted);}
+@media(max-width:800px){header{padding:0 20px;}.hero{grid-template-columns:1fr;padding:40px 20px 24px;gap:20px;}.main{grid-template-columns:1fr;padding:0 20px 60px;}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">⬡ Bliski Wschód Monitor</div>
+  <div class="header-meta"><span class="live-dot"></span>Aktualizacja: 04 March 2026, 10:37 UTC · Auto-odświeżanie co 5h</div>
+</header>
+<div class="hero">
+  <div>
+    <div class="day-label">Dzień 5 konfliktu · Raport automatyczny</div>
+    <h1 class="hero-headline">Iran pod atakiem USA i Izraela</h1>
+    <p class="hero-summary">Stany Zjednoczone i Izrael przeprowadziły ataki na Iran, w wyniku których zginął ajatollah Ali Khamenei. Iran odpowiedział atakami na państwa Zatoki Perskiej i Izrael. Sytuacja na Bliskim Wschodzie jest bardzo napięta.</p>
+    <div class="alert-box"><div class="al-level">Alert: KRYTYCZNY</div><div class="al-msg">Sytuacja na Bliskim Wschodzie jest bardzo napięta i istnieje ryzyko dalszej eskalacji</div></div>
+    <div class="stats-strip"><div class="stat-card"><div class="stat-value">nieznana</div><div class="stat-label">Liczba ofiar w Iranie</div><div class="stat-arrow" style="color:#e94560">▲</div></div><div class="stat-card"><div class="stat-value">kilka</div><div class="stat-label">Liczba ataków na państwa Zatoki Perskiej</div><div class="stat-arrow" style="color:#e94560">▲</div></div><div class="stat-card"><div class="stat-value">wzrosła</div><div class="stat-label">Cena ropy Brent</div><div class="stat-arrow" style="color:#e94560">▲</div></div></div>
+  </div>
+  <div>
+    <div class="section">
+      <div class="section-head"><div class="sh-accent"></div><h2>Rynki Energetyczne</h2></div>
+      <div class="section-body"><div class="energy-grid"><div class="en-item"><div class="en-val">wzrosła</div><div class="en-lbl">Brent Crude</div></div><div class="en-item"><div class="en-val">wzrosła</div><div class="en-lbl">WTI Crude</div></div><div class="en-item"><div class="en-val">otwarta</div><div class="en-lbl">Cieśnina Ormuz</div></div><div class="en-item"><div class="en-val">stabilna</div><div class="en-lbl">LNG Europa</div></div></div></div>
+    </div>
+  </div>
+</div>
+<div class="main">
+  <div class="col-left">
+    <div class="section">
+      <div class="section-head"><div class="sh-accent"></div><h2>Kronika dnia</h2></div>
+      <div class="section-body"><div class="tl-item"><div class="tl-time">Rano</div><div class="tl-body"><div class="tl-title">Ataki USA i Izraela na Iran <span class="new-tag">NOWE</span></div><div class="tl-detail">Ataki przeprowadzono w odpowiedzi na irańskie ataki na państwa Zatoki Perskiej</div></div></div><div class="tl-item"><div class="tl-time">Południe</div><div class="tl-body"><div class="tl-title">Iran odpowiada atakami na Izrael <span class="new-tag">NOWE</span></div><div class="tl-detail">Iran przeprowadził ataki rakietowe na cele w Izraelu</div></div></div><div class="tl-item"><div class="tl-time">Wieczór</div><div class="tl-body"><div class="tl-title">Sytuacja na Bliskim Wschodzie jest bardzo napięta <span class="new-tag">NOWE</span></div><div class="tl-detail">Państwa Zatoki Perskiej i Izrael są w gotowości do obrony</div></div></div></div>
+    </div>
+    <div class="section">
+      <div class="section-head"><div class="sh-accent"></div><h2>Macierz Ryzyka</h2></div>
+      <div class="section-body">
+        <table class="risk-table">
+          <thead><tr><th>Zagrożenie</th><th>Prawdopodobieństwo</th><th>Skutki</th><th>Zmiana</th></tr></thead>
+          <tbody><tr><td>Wojna na Bliskim Wschodzie</td><td><span class="badge" style="background:#fed7d7;color:#9b2c2c">WYSOKIE</span></td><td>krytyczny</td><td>⬆️ wzrost</td></tr><tr><td>Zamknięcie Cieśniny Ormuz</td><td><span class="badge" style="background:#fefcbf;color:#975a16">ŚREDNIE</span></td><td>wysoki</td><td>➡️ bez zmian</td></tr><tr><td>Ataki terrorystyczne</td><td><span class="badge" style="background:#fefcbf;color:#975a16">ŚREDNIE</span></td><td>wysoki</td><td>➡️ bez zmian</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-right">
+    <div class="section">
+      <div class="section-head"><div class="sh-accent"></div><h2>Aktorzy</h2></div>
+      <div class="section-body"><div class="actor-card"><div class="actor-header"><span class="actor-name">Stany Zjednoczone</span><span class="actor-status" style="color:#718096">⬤ AKTYWNE</span></div><div class="actor-summary">Przeprowadziły ataki na Iran</div></div><div class="actor-card"><div class="actor-header"><span class="actor-name">Izrael</span><span class="actor-status" style="color:#718096">⬤ AKTYWNE</span></div><div class="actor-summary">Przeprowadził ataki na Iran i jest celem irańskich ataków</div></div><div class="actor-card"><div class="actor-header"><span class="actor-name">Iran</span><span class="actor-status" style="color:#718096">⬤ AKTYWNE</span></div><div class="actor-summary">Odpowiada atakami na państwa Zatoki Perskiej i Izrael</div></div></div>
+    </div>
+    <div class="section">
+      <div class="section-head"><div class="sh-accent"></div><h2>Scenariusze</h2></div>
+      <div class="section-body"><div class="scenario-card"><div class="sc-label">Wojna na Bliskim Wschodzie</div><div class="sc-prob">wysokie</div><div class="sc-desc">Wojna może rozprzestrzenić się na cały Bliski Wschód</div></div><div class="scenario-card"><div class="sc-label">Zamknięcie Cieśniny Ormuz</div><div class="sc-prob">średnie</div><div class="sc-desc">Zamknięcie cieśniny może spowodować kryzys energetyczny</div></div><div class="scenario-card"><div class="sc-label">Ataki terrorystyczne</div><div class="sc-prob">średnie</div><div class="sc-desc">Ataki terrorystyczne mogą być przeprowadzane przez irańskie organizacje terrorystyczne</div></div></div>
+    </div>
+    <div class="section">
+      <div class="section-head"><div class="sh-accent"></div><h2>Źródła</h2></div>
+      <div class="sources-strip"><span>BBC</span> <span>Al Jazeera</span> <span>Reuters</span> <span>NYT</span></div>
+    </div>
+  </div>
+</div>
+<footer>⬡ Monitor Bliskiego Wschodu · RSS + Groq AI · 04 March 2026, 10:37 UTC</footer>
+</body>
+</html>

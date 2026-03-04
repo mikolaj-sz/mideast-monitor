@@ -3,11 +3,9 @@ import os
 import re
 import json
 import urllib.request
-import urllib.parse
 from datetime import datetime, timezone
 from groq import Groq
 
-# ── RSS feeds ────────────────────────────────────────────────────────────────
 FEEDS = [
     "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml",
     "https://rss.nytimes.com/services/xml/rss/nyt/MiddleEast.xml",
@@ -18,7 +16,7 @@ FEEDS = [
 KEYWORDS = [
     "iran", "israel", "middle east", "hormuz", "hezbollah",
     "tehran", "gaza", "lebanon", "houthi", "irgc", "khamenei",
-    "bliski wschód", "liban", "nuclear", "oil", "crude"
+    "nuclear", "oil", "crude", "bliski wschód"
 ]
 
 def fetch_rss(url):
@@ -26,11 +24,11 @@ def fetch_rss(url):
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=10) as r:
             content = r.read().decode("utf-8", errors="ignore")
-        titles   = re.findall(r"<title><!\[CDATA\[(.*?)\]\]></title>|<title>(.*?)</title>", content)
-        descs    = re.findall(r"<description><!\[CDATA\[(.*?)\]\]></description>|<description>(.*?)</description>", content)
-        titles   = [a or b for a, b in titles]
-        descs    = [a or b for a, b in descs]
-        return list(zip(titles[1:], descs[1:]))  # skip feed title
+        titles = re.findall(r"<title><!\[CDATA\[(.*?)\]\]></title>|<title>(.*?)</title>", content)
+        descs  = re.findall(r"<description><!\[CDATA\[(.*?)\]\]></description>|<description>(.*?)</description>", content)
+        titles = [a or b for a, b in titles]
+        descs  = [a or b for a, b in descs]
+        return list(zip(titles[1:], descs[1:]))
     except Exception as e:
         print(f"RSS error {url}: {e}")
         return []
@@ -38,40 +36,30 @@ def fetch_rss(url):
 def collect_news():
     all_items = []
     for feed in FEEDS:
-        items = fetch_rss(feed)
-        all_items.extend(items)
-
+        all_items.extend(fetch_rss(feed))
     relevant = []
+    seen = set()
     for title, desc in all_items:
         text = (title + " " + desc).lower()
         if any(kw in text for kw in KEYWORDS):
-            clean_desc = re.sub(r"<[^>]+>", "", desc).strip()[:200]
-            relevant.append(f"• {title.strip()} — {clean_desc}")
+            key = title.strip()[:60]
+            if key not in seen:
+                seen.add(key)
+                clean = re.sub(r"<[^>]+>", "", desc).strip()[:200]
+                relevant.append(f"• {title.strip()} — {clean}")
+    return relevant[:30]
 
-    # deduplicate roughly
-    seen = set()
-    unique = []
-    for item in relevant:
-        key = item[:60]
-        if key not in seen:
-            seen.add(key)
-            unique.append(item)
-
-    return unique[:30]  # max 30 items
-
-# ── Groq call ────────────────────────────────────────────────────────────────
 def fetch_analysis(news_items):
     client = Groq(api_key=os.environ["GROQ_API_KEY"])
-
-    news_text = "\n".join(news_items) if news_items else "Brak świeżych newsów z RSS."
+    news_text = "\n".join(news_items) if news_items else "Brak świeżych newsów."
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
-    prompt = f"""Jesteś analitykiem geopolitycznym. Na podstawie poniższych newsów z {today} wygeneruj raport o sytuacji na Bliskim Wschodzie.
+    prompt = f"""Jesteś analitykiem geopolitycznym. Na podstawie newsów z {today} wygeneruj raport o sytuacji na Bliskim Wschodzie.
 
 NEWSY:
 {news_text}
 
-Zwróć WYŁĄCZNIE czysty JSON (bez markdown, bez backtick-ów, bez komentarzy):
+Zwróć WYŁĄCZNIE czysty JSON (bez markdown, bez backtick-ów):
 {{
   "day_number": <liczba dni od 28 lutego 2026>,
   "headline": "Krótki nagłówek najważniejszego zdarzenia",
@@ -99,43 +87,39 @@ Zwróć WYŁĄCZNIE czysty JSON (bez markdown, bez backtick-ów, bez komentarzy)
   "alert_message": "Jedno zdanie opisujące główne zagrożenie"
 }}"""
 
-    print(f"Sending {len(news_items)} news items to Groq...")
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
         max_tokens=3000,
         temperature=0.3,
     )
-
     text = response.choices[0].message.content.strip()
     text = re.sub(r"^```json\s*", "", text)
-    text = re.sub(r"^```\s*",     "", text)
-    text = re.sub(r"\s*```$",     "", text)
-
+    text = re.sub(r"^```\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
     return json.loads(text)
 
-# ── HTML renderer ────────────────────────────────────────────────────────────
 def render_html(data):
-    now_utc    = datetime.now(timezone.utc).strftime("%d %B %Y, %H:%M UTC")
-    day_num    = data.get("day_number", "?")
-    headline   = data.get("headline", "Analiza Bliskiego Wschodu")
-    summary    = data.get("executive_summary", "")
+    now_utc       = datetime.now(timezone.utc).strftime("%d %B %Y, %H:%M UTC")
+    day_num       = data.get("day_number", "?")
+    headline      = data.get("headline", "Analiza Bliskiego Wschodu")
+    summary       = data.get("executive_summary", "")
     alert_level   = data.get("alert_level", "wysoki")
     alert_message = data.get("alert_message", "")
 
     alert_colors = {
-        "krytyczny":   ("#e94560", "#e9456018"),
-        "wysoki":      ("#dd6b20", "#dd6b2018"),
-        "podwyższony": ("#d69e2e", "#d69e2e18"),
-        "normalny":    ("#38a169", "#38a16918"),
+        "krytyczny":   ("#c0392b", "#fdf0f0"),
+        "wysoki":      ("#d35400", "#fdf3e3"),
+        "podwyższony": ("#b7950b", "#fefaed"),
+        "normalny":    ("#1e8449", "#eafaf1"),
     }
-    alert_accent, alert_bg = alert_colors.get(alert_level, ("#e94560", "#e9456018"))
+    alert_accent, alert_bg = alert_colors.get(alert_level, ("#c0392b", "#fdf0f0"))
 
     stats_html = ""
     for s in data.get("key_stats", []):
         trend = s.get("trend", "neutral")
         arrow = {"up": "▲", "down": "▼", "neutral": "●"}.get(trend, "●")
-        color = {"up": "#e94560", "down": "#68d391", "neutral": "#a0aec0"}.get(trend, "#a0aec0")
+        color = {"up": "#c0392b", "down": "#1e8449", "neutral": "#7f8c8d"}.get(trend, "#7f8c8d")
         stats_html += f'<div class="stat-card"><div class="stat-value">{s.get("value","–")}</div><div class="stat-label">{s.get("label","")}</div><div class="stat-arrow" style="color:{color}">{arrow}</div></div>'
 
     timeline_html = ""
@@ -143,17 +127,17 @@ def render_html(data):
         new_tag = '<span class="new-tag">NOWE</span>' if item.get("is_new") else ""
         timeline_html += f'<div class="tl-item"><div class="tl-time">{item.get("time","")}</div><div class="tl-body"><div class="tl-title">{item.get("title","")} {new_tag}</div><div class="tl-detail">{item.get("detail","")}</div></div></div>'
 
-    status_color = {"active":"#e94560","escalating":"#dd6b20","passive":"#718096","de-escalating":"#38a169"}
+    status_color = {"active":"#c0392b","escalating":"#d35400","passive":"#7f8c8d","de-escalating":"#1e8449"}
     actors_html = ""
     for a in data.get("actors", []):
-        color = status_color.get(a.get("status","passive"), "#718096")
+        color = status_color.get(a.get("status","passive"), "#7f8c8d")
         actors_html += f'<div class="actor-card"><div class="actor-header"><span class="actor-name">{a.get("name","")}</span><span class="actor-status" style="color:{color}">⬤ {a.get("status","").upper()}</span></div><div class="actor-summary">{a.get("summary","")}</div></div>'
 
     risk_badge = {
-        "aktywne": ("AKTYWNE","#1a1a2e","#e94560"),
-        "wysokie": ("WYSOKIE","#fed7d7","#9b2c2c"),
-        "średnie": ("ŚREDNIE","#fefcbf","#975a16"),
-        "niskie":  ("NISKIE", "#c6f6d5","#276749"),
+        "aktywne": ("AKTYWNE","#2c0a0a","#e74c3c"),
+        "wysokie": ("WYSOKIE","#fde8e8","#922b21"),
+        "średnie": ("ŚREDNIE","#fef9e7","#9a7d0a"),
+        "niskie":  ("NISKIE", "#eafaf1","#1e8449"),
     }
     change_icon = {"nowe":"🆕","wzrost":"⬆️","bez zmian":"➡️","spadek":"⬇️"}
     risks_html = ""
@@ -180,25 +164,25 @@ def render_html(data):
 <title>Monitor Bliskiego Wschodu – Dzień {day_num}</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-:root{{--bg:#0d0d14;--surface:#13131f;--border:#1e1e30;--accent:#e94560;--accent2:#f7a541;--text:#e2e8f0;--muted:#718096;}}
+:root{{--bg:#f7f7f5;--surface:#ffffff;--border:#e5e5e0;--accent:#c0392b;--accent2:#d35400;--text:#1a1a1a;--muted:#6b7280;--header-bg:#ffffff;}}
 *{{margin:0;padding:0;box-sizing:border-box;}}
 body{{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.7;}}
-header{{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100;background:rgba(13,13,20,0.95);backdrop-filter:blur(12px);}}
+header{{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.96);backdrop-filter:blur(12px);box-shadow:0 1px 3px rgba(0,0,0,0.06);}}
 .logo{{font-family:'Syne',sans-serif;font-weight:800;font-size:15px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);}}
 .header-meta{{font-size:12px;color:var(--muted);}}
 .live-dot{{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-right:6px;animation:blink 1.4s infinite;}}
 @keyframes blink{{0%,100%{{opacity:1}}50%{{opacity:.2}}}}
-.hero{{padding:72px 48px 48px;max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 320px;gap:48px;align-items:start;}}
+.hero{{padding:64px 48px 40px;max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 320px;gap:48px;align-items:start;}}
 .day-label{{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--accent);font-family:'Syne',sans-serif;margin-bottom:16px;}}
-.hero-headline{{font-family:'Syne',sans-serif;font-size:clamp(26px,4vw,44px);font-weight:800;line-height:1.15;margin-bottom:20px;}}
-.hero-summary{{font-size:16px;color:#a0aec0;font-weight:300;line-height:1.8;margin-bottom:24px;}}
-.alert-box{{border-radius:10px;padding:16px 20px;border-left:3px solid {alert_accent};background:{alert_bg};margin-bottom:20px;}}
+.hero-headline{{font-family:'Syne',sans-serif;font-size:clamp(26px,4vw,42px);font-weight:800;line-height:1.15;margin-bottom:20px;color:var(--text);}}
+.hero-summary{{font-size:16px;color:#4b5563;font-weight:300;line-height:1.8;margin-bottom:24px;}}
+.alert-box{{border-radius:8px;padding:14px 18px;border-left:3px solid {alert_accent};background:{alert_bg};margin-bottom:20px;}}
 .al-level{{font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:'Syne',sans-serif;font-weight:700;color:{alert_accent};margin-bottom:4px;}}
 .al-msg{{font-size:14px;color:var(--text);}}
 .stats-strip{{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;}}
-.stat-card{{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;position:relative;overflow:hidden;}}
+.stat-card{{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);}}
 .stat-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);}}
-.stat-value{{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;}}
+.stat-value{{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--text);}}
 .stat-label{{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px;}}
 .stat-arrow{{position:absolute;top:14px;right:14px;font-size:14px;}}
 .energy-grid{{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}}
@@ -207,36 +191,36 @@ header{{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-
 .en-lbl{{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px;}}
 .main{{max-width:1100px;margin:0 auto;padding:0 48px 80px;display:grid;grid-template-columns:1fr 320px;gap:28px;}}
 .col-left>*+*,.col-right>*+*{{margin-top:24px;}}
-.section{{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}}
-.section-head{{padding:14px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}}
-.section-head h2{{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;}}
+.section{{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);}}
+.section-head{{padding:14px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:#fafaf8;}}
+.section-head h2{{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text);}}
 .sh-accent{{width:4px;height:16px;background:var(--accent);border-radius:2px;flex-shrink:0;}}
 .section-body{{padding:18px 22px;}}
 .tl-item{{display:flex;gap:14px;padding:11px 0;border-bottom:1px solid var(--border);}}
 .tl-item:last-child{{border:none;}}
 .tl-time{{flex-shrink:0;width:75px;font-size:11px;font-weight:600;color:var(--accent);font-family:'Syne',sans-serif;padding-top:2px;}}
-.tl-title{{font-size:14px;font-weight:500;margin-bottom:3px;}}
+.tl-title{{font-size:14px;font-weight:500;margin-bottom:3px;color:var(--text);}}
 .tl-detail{{font-size:13px;color:var(--muted);line-height:1.6;}}
 .new-tag{{background:var(--accent);color:white;font-size:9px;font-weight:700;letter-spacing:1px;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle;}}
 .actor-card{{padding:12px 0;border-bottom:1px solid var(--border);}}
 .actor-card:last-child{{border:none;}}
 .actor-header{{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}}
-.actor-name{{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;}}
+.actor-name{{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--text);}}
 .actor-status{{font-size:10px;letter-spacing:1px;font-family:'Syne',sans-serif;font-weight:700;}}
 .actor-summary{{font-size:13px;color:var(--muted);line-height:1.6;}}
 .risk-table{{width:100%;border-collapse:collapse;font-size:13px;}}
-.risk-table th{{text-align:left;padding:8px 10px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);}}
-.risk-table td{{padding:9px 10px;border-bottom:1px solid var(--border);}}
+.risk-table th{{text-align:left;padding:8px 10px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);background:#fafaf8;}}
+.risk-table td{{padding:9px 10px;border-bottom:1px solid var(--border);color:var(--text);}}
 .risk-table tr:last-child td{{border:none;}}
 .badge{{display:inline-block;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.5px;}}
 .scenario-card{{padding:14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;}}
 .scenario-card:last-child{{margin:0;}}
-.sc-label{{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;margin-bottom:3px;}}
+.sc-label{{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;}}
 .sc-prob{{font-size:11px;color:var(--accent);font-weight:600;letter-spacing:.5px;margin-bottom:5px;}}
 .sc-desc{{font-size:13px;color:var(--muted);line-height:1.6;}}
 .sources-strip{{padding:14px 22px;font-size:11px;color:var(--muted);line-height:2;}}
 .sources-strip span{{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:1px 8px;margin:2px;}}
-footer{{border-top:1px solid var(--border);padding:24px 48px;text-align:center;font-size:12px;color:var(--muted);}}
+footer{{border-top:1px solid var(--border);padding:24px 48px;text-align:center;font-size:12px;color:var(--muted);background:var(--surface);}}
 @media(max-width:800px){{header{{padding:0 20px;}}.hero{{grid-template-columns:1fr;padding:40px 20px 24px;gap:20px;}}.main{{grid-template-columns:1fr;padding:0 20px 60px;}}}}
 </style>
 </head>

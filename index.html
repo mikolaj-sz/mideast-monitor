@@ -19,8 +19,8 @@ header{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-i
 .day-label{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--accent);font-family:'Syne',sans-serif;margin-bottom:16px;}
 .hero-headline{font-family:'Syne',sans-serif;font-size:clamp(26px,4vw,44px);font-weight:800;line-height:1.15;margin-bottom:20px;}
 .hero-summary{font-size:16px;color:#a0aec0;font-weight:300;line-height:1.8;margin-bottom:24px;}
-.alert-box{border-radius:10px;padding:16px 20px;border-left:3px solid #e94560;background:#e9456018;margin-bottom:20px;}
-.al-level{font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:'Syne',sans-serif;font-weight:700;color:#e94560;margin-bottom:4px;}
+.alert-box{border-radius:10px;padding:16px 20px;border-left:3px solid #dd6b20;background:#dd6b2018;margin-bottom:20px;}
+.al-level{font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:'Syne',sans-serif;font-weight:700;color:#dd6b20;margin-bottom:4px;}
 .al-msg{font-size:14px;color:var(--text);}
 .stats-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;position:relative;overflow:hidden;}
@@ -70,20 +70,20 @@ footer{border-top:1px solid var(--border);padding:24px 48px;text-align:center;fo
 <body>
 <header>
   <div class="logo">⬡ Bliski Wschód Monitor</div>
-  <div class="header-meta"><span class="live-dot"></span>Aktualizacja: 04 March 2026, 10:39 UTC · Auto-odświeżanie co 5h</div>
+  <div class="header-meta"><span class="live-dot"></span>Aktualizacja: 04 March 2026, 10:45 UTC · Auto-odświeżanie co 5h</div>
 </header>
 <div class="hero">
   <div>
     <div class="day-label">Dzień 5 konfliktu · Raport automatyczny</div>
     <h1 class="hero-headline">Iran i Izrael kontynuują walki</h1>
-    <p class="hero-summary">Sytuacja na Bliskim Wschodzie jest coraz bardziej napięta, ponieważ Iran i Izrael kontynuują walki. Ataki rakietowe i lotnicze spowodowały liczne ofiary i zniszczenia. Sytuacja gospodarcza w Iranie jest coraz gorsza, a ludzie boją się o swoją przyszłość.</p>
-    <div class="alert-box"><div class="al-level">Alert: KRYTYCZNY</div><div class="al-msg">Sytuacja na Bliskim Wschodzie jest coraz bardziej napięta, a ryzyko wojny totalnej jest wysokie</div></div>
-    <div class="stats-strip"><div class="stat-card"><div class="stat-value">ponad 100</div><div class="stat-label">Liczba ofiar</div><div class="stat-arrow" style="color:#e94560">▲</div></div><div class="stat-card"><div class="stat-value">ponad 10 000</div><div class="stat-label">Liczba uchodźców</div><div class="stat-arrow" style="color:#e94560">▲</div></div><div class="stat-card"><div class="stat-value">ponad 100 USD/baryłka</div><div class="stat-label">Cena ropy</div><div class="stat-arrow" style="color:#e94560">▲</div></div></div>
+    <p class="hero-summary">Sytuacja na Bliskim Wschodzie jest coraz bardziej napięta, ponieważ Iran i Izrael kontynuują walki. Ataki rakietowe i naloty powietrzne spowodowały ofiary śmiertelne i zniszczenia. Strefa Hormuzu, kluczowy szlak transportowy, jest zagrożona przez irańskie groźby.</p>
+    <div class="alert-box"><div class="al-level">Alert: WYSOKI</div><div class="al-msg">Sytuacja na Bliskim Wschodzie jest coraz bardziej napięta i istnieje ryzyko dalszej eskalacji walk</div></div>
+    <div class="stats-strip"><div class="stat-card"><div class="stat-value">nieznana</div><div class="stat-label">Liczba ofiar śmiertelnych w Iranie</div><div class="stat-arrow" style="color:#e94560">▲</div></div><div class="stat-card"><div class="stat-value">wzrasta</div><div class="stat-label">Liczba uchodźców z Libanu</div><div class="stat-arrow" style="color:#e94560">▲</div></div><div class="stat-card"><div class="stat-value">wzrasta</div><div class="stat-label">Cena ropy Brent</div><div class="stat-arrow" style="color:#e94560">▲</div></div></div>
   </div>
   <div>
     <div class="section">
       <div class="section-head"><div class="sh-accent"></div><h2>Rynki Energetyczne</h2></div>
-      <div class="section-body"><div class="energy-grid"><div class="en-item"><div class="en-val">ponad 100 USD/baryłka</div><div class="en-lbl">Brent Crude</div></div><div class="en-item"><div class="en-val">ponad 90 USD/baryłka</div><div class="en-lbl">WTI Crude</div></div><div class="en-item"><div class="en-val">zamknięty</div><div class="en-lbl">Cieśnina Ormuz</div></div><div class="en-item"><div class="en-val">brak dostaw</div><div class="en-lbl">LNG Europa</div></div></div></div>
+      <div class="section-body"><div class="energy-grid"><div class="en-item"><div class="en-val">wzrasta</div><div class="en-lbl">Brent Crude</div></div><div class="en-item"><div class="en-val">wzrasta</div><div class="en-lbl">WTI Crude</div></div><div class="en-item"><div class="en-val">zagrożona</div><div class="en-lbl">Cieśnina Ormuz</div></div><div class="en-item"><div class="en-val">stabilna</div><div class="en-lbl">LNG Europa</div></div></div></div>
     </div>
   </div>
 </div>
@@ -91,14 +91,14 @@ footer{border-top:1px solid var(--border);padding:24px 48px;text-align:center;fo
   <div class="col-left">
     <div class="section">
       <div class="section-head"><div class="sh-accent"></div><h2>Kronika dnia</h2></div>
-      <div class="section-body"><div class="tl-item"><div class="tl-time">Rano</div><div class="tl-body"><div class="tl-title">Atak Izraela na Liban <span class="new-tag">NOWE</span></div><div class="tl-detail">Izrael przeprowadził atak na cele w Libanie, w odpowiedzi na ostrzał rakietowy</div></div></div><div class="tl-item"><div class="tl-time">Południe</div><div class="tl-body"><div class="tl-title">Iran zapowiada odwet <span class="new-tag">NOWE</span></div><div class="tl-detail">Iran zapowiedział odwet za ataki Izraela i USA</div></div></div><div class="tl-item"><div class="tl-time">Wieczór</div><div class="tl-body"><div class="tl-title">USA i Izrael kontynuują ataki <span class="new-tag">NOWE</span></div><div class="tl-detail">USA i Izrael kontynuują ataki na cele w Iranie i Libanie</div></div></div></div>
+      <div class="section-body"><div class="tl-item"><div class="tl-time">Rano</div><div class="tl-body"><div class="tl-title">Izrael atakuje Liban <span class="new-tag">NOWE</span></div><div class="tl-detail">Izrael rozpoczął inwazję na Liban w odpowiedzi na ataki rakietowe Hezbollahu</div></div></div><div class="tl-item"><div class="tl-time">Południe</div><div class="tl-body"><div class="tl-title">Iran grozi zamknięciem Strefy Hormuzu <span class="new-tag">NOWE</span></div><div class="tl-detail">Iran zagroził, że zamknie Strefę Hormuzu, jeśli jego tankowce nie będą mogły przepłynąć przez cieśninę</div></div></div></div>
     </div>
     <div class="section">
       <div class="section-head"><div class="sh-accent"></div><h2>Macierz Ryzyka</h2></div>
       <div class="section-body">
         <table class="risk-table">
           <thead><tr><th>Zagrożenie</th><th>Prawdopodobieństwo</th><th>Skutki</th><th>Zmiana</th></tr></thead>
-          <tbody><tr><td>Wojna na Bliskim Wschodzie</td><td><span class="badge" style="background:#fed7d7;color:#9b2c2c">WYSOKIE</span></td><td>krytyczny</td><td>⬆️ wzrost</td></tr><tr><td>Kryzys gospodarczy</td><td><span class="badge" style="background:#fefcbf;color:#975a16">ŚREDNIE</span></td><td>wysoki</td><td>➡️ bez zmian</td></tr><tr><td>Ataki terrorystyczne</td><td><span class="badge" style="background:#c6f6d5;color:#276749">NISKIE</span></td><td>średni</td><td>⬇️ spadek</td></tr></tbody>
+          <tbody><tr><td>Zamknięcie Strefy Hormuzu</td><td><span class="badge" style="background:#fed7d7;color:#9b2c2c">WYSOKIE</span></td><td>krytyczny</td><td>⬆️ wzrost</td></tr><tr><td>Eskalacja walk</td><td><span class="badge" style="background:#fed7d7;color:#9b2c2c">WYSOKIE</span></td><td>wysoki</td><td>⬆️ wzrost</td></tr><tr><td>Kryzys humanitarny</td><td><span class="badge" style="background:#fefcbf;color:#975a16">ŚREDNIE</span></td><td>wysoki</td><td>➡️ bez zmian</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -106,11 +106,11 @@ footer{border-top:1px solid var(--border);padding:24px 48px;text-align:center;fo
   <div class="col-right">
     <div class="section">
       <div class="section-head"><div class="sh-accent"></div><h2>Aktorzy</h2></div>
-      <div class="section-body"><div class="actor-card"><div class="actor-header"><span class="actor-name">Iran</span><span class="actor-status" style="color:#dd6b20">⬤ ESCALATING</span></div><div class="actor-summary">Iran kontynuuje ataki na Izrael i USA</div></div><div class="actor-card"><div class="actor-header"><span class="actor-name">Izrael</span><span class="actor-status" style="color:#dd6b20">⬤ ESCALATING</span></div><div class="actor-summary">Izrael kontynuuje ataki na Iran i Liban</div></div><div class="actor-card"><div class="actor-header"><span class="actor-name">USA</span><span class="actor-status" style="color:#e94560">⬤ ACTIVE</span></div><div class="actor-summary">USA kontynuują ataki na Iran</div></div></div>
+      <div class="section-body"><div class="actor-card"><div class="actor-header"><span class="actor-name">Iran</span><span class="actor-status" style="color:#dd6b20">⬤ ESCALATING</span></div><div class="actor-summary">Iran kontynuuje ataki rakietowe i grozi zamknięciem Strefy Hormuzu</div></div><div class="actor-card"><div class="actor-header"><span class="actor-name">Izrael</span><span class="actor-status" style="color:#dd6b20">⬤ ESCALATING</span></div><div class="actor-summary">Izrael atakuje Liban i odpowiada na ataki rakietowe Hezbollahu</div></div><div class="actor-card"><div class="actor-header"><span class="actor-name">Stany Zjednoczone</span><span class="actor-status" style="color:#e94560">⬤ ACTIVE</span></div><div class="actor-summary">Stany Zjednoczone wspierają Izrael i atakują cele w Iranie</div></div></div>
     </div>
     <div class="section">
       <div class="section-head"><div class="sh-accent"></div><h2>Scenariusze</h2></div>
-      <div class="section-body"><div class="scenario-card"><div class="sc-label">Wojna totalna</div><div class="sc-prob">niskie</div><div class="sc-desc">Wojna totalna na Bliskim Wschodzie, z udziałem wielu państw</div></div><div class="scenario-card"><div class="sc-label">Rozmowy pokojowe</div><div class="sc-prob">średnie</div><div class="sc-desc">Rozmowy pokojowe między zainteresowanymi stronami, w celu znalezienia pokojowego rozwiązania konfliktu</div></div></div>
+      <div class="section-body"><div class="scenario-card"><div class="sc-label">Eskalacja walk</div><div class="sc-prob">wysokie</div><div class="sc-desc">Walki między Iranem a Izraelem mogą eskalować i rozprzestrzenić się na inne kraje regionu</div></div><div class="scenario-card"><div class="sc-label">Zamknięcie Strefy Hormuzu</div><div class="sc-prob">wysokie</div><div class="sc-desc">Iran może zamknąć Strefę Hormuzu, co spowoduje kryzys energetyczny i gospodarczy</div></div></div>
     </div>
     <div class="section">
       <div class="section-head"><div class="sh-accent"></div><h2>Źródła</h2></div>
@@ -118,6 +118,6 @@ footer{border-top:1px solid var(--border);padding:24px 48px;text-align:center;fo
     </div>
   </div>
 </div>
-<footer>⬡ Monitor Bliskiego Wschodu · RSS + Groq AI · 04 March 2026, 10:39 UTC</footer>
+<footer>⬡ Monitor Bliskiego Wschodu · RSS + Groq AI · 04 March 2026, 10:45 UTC</footer>
 </body>
 </html>

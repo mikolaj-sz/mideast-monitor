@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Analiza Sytuacji na Bliskim Wschodzie – Marzec 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -13,6 +14,23 @@
     font-size: 15px;
     line-height: 1.75;
   }
+
+  /* UPDATE BANNER */
+  .update-banner {
+    background: #1a1a2e;
+    color: #a0aec0;
+    padding: 8px 60px;
+    font-family: 'Arial', sans-serif;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .update-banner .update-left { display: flex; align-items: center; gap: 10px; }
+  .update-dot { width: 7px; height: 7px; border-radius: 50%; background: #68d391; display: inline-block; }
+  .update-time { color: #68d391; font-weight: 700; }
+
   .cover {
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
     color: white;
@@ -77,6 +95,8 @@
   .toc h2 { font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: #e94560; font-family: 'Arial', sans-serif; margin-bottom: 14px; }
   .toc ol { padding-left: 20px; }
   .toc li { margin: 6px 0; font-size: 14px; color: #2d3748; font-family: 'Arial', sans-serif; }
+  .toc a { color: #0f3460; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; color: #e94560; }
 
   .section {
     background: white;
@@ -214,6 +234,32 @@
   .risk-sredni { background: #fefcbf; color: #975a16; }
   .risk-niski { background: #c6f6d5; color: #276749; }
 
+  /* CHARTS */
+  .chart-container {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 24px;
+    margin: 20px 0;
+  }
+  .chart-title {
+    font-family: 'Arial', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #718096;
+    margin-bottom: 16px;
+  }
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 20px 0;
+  }
+  canvas { max-width: 100%; }
+
+  /* SOURCE LINKS */
   .source-box {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
@@ -234,12 +280,22 @@
     font-size: 12px;
     color: #4a5568;
     font-family: 'Arial', sans-serif;
-    padding: 4px 0;
+    padding: 5px 0;
     border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
   }
   .source-box li:last-child { border: none; }
-  .source-box li::before { content: '▸ '; color: #e94560; }
-  .src-type { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 6px; }
+  .source-box li::before { content: '▸'; color: #e94560; flex-shrink: 0; }
+  .source-box a {
+    color: #2b6cb0;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .source-box a:hover { text-decoration: underline; color: #e94560; }
+  .src-type { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; flex-shrink: 0; }
   .src-gov { background: #bee3f8; color: #2b6cb0; }
   .src-think { background: #e9d8fd; color: #6b46c1; }
   .src-media { background: #c6f6d5; color: #276749; }
@@ -255,6 +311,7 @@
     margin-top: 40px;
   }
   .footer strong { color: #a0aec0; }
+  .footer .update-info { color: #68d391; margin-top: 6px; font-size: 11px; }
 
   ul.prose-list { padding-left: 20px; margin: 10px 0; }
   ul.prose-list li { margin-bottom: 6px; font-size: 14px; color: #4a5568; }
@@ -265,9 +322,26 @@
     .cover { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
     .section { box-shadow: none; border: 1px solid #e2e8f0; }
   }
+  @media (max-width: 700px) {
+    .charts-row { grid-template-columns: 1fr; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .update-banner { padding: 8px 20px; flex-direction: column; align-items: flex-start; gap: 4px; }
+    .cover { padding: 50px 24px; }
+    .status-bar { padding: 10px 24px; }
+    .container { padding: 0 16px; }
+  }
 </style>
 </head>
 <body>
+
+<!-- UPDATE BANNER -->
+<div class="update-banner">
+  <div class="update-left">
+    <span class="update-dot"></span>
+    <span>Ostatnia aktualizacja: <span class="update-time" id="update-time">4 marca 2026, 13:00 UTC</span></span>
+  </div>
+  <div>Raport analityczny · Status: <strong style="color:#fbd38d;">SYTUACJA DYNAMICZNA</strong></div>
+</div>
 
 <!-- COVER -->
 <div class="cover">
@@ -277,7 +351,7 @@
     Głęboka analiza aktualnego kryzysu, potencjalnych scenariuszy rozwoju, zagrożeń regionalnych i globalnych – oparta na zweryfikowanych źródłach oficjalnych i eksperckich.
   </p>
   <div class="cover-meta">
-    <strong>Data raportu:</strong> 3 marca 2026 &nbsp;|&nbsp;
+    <strong>Data raportu:</strong> 4 marca 2026 &nbsp;|&nbsp;
     <strong>Status:</strong> Sytuacja dynamiczna – dane aktualne na moment publikacji &nbsp;|&nbsp;
     <strong>Język:</strong> Polski
   </div>
@@ -293,19 +367,19 @@
   <div class="toc">
     <h2>Spis Treści</h2>
     <ol>
-      <li>Tło historyczne i kontekst strategiczny (2023–2025)</li>
-      <li>Kluczowe zdarzenia: 28 lutego – 3 marca 2026</li>
-      <li>Analiza aktorów regionalnych i globalnych</li>
-      <li>Zagrożenia bezpośrednie i scenariusze krótkoterminowe</li>
-      <li>Potencjalne następne kroki i scenariusze strategiczne</li>
-      <li>Implikacje globalne: energia, gospodarka, bezpieczeństwo</li>
-      <li>Macierz ryzyka</li>
-      <li>Źródła i metodologia</li>
+      <li><a href="#s1">Tło historyczne i kontekst strategiczny (2023–2025)</a></li>
+      <li><a href="#s2">Kluczowe zdarzenia: 28 lutego – 4 marca 2026</a></li>
+      <li><a href="#s3">Analiza aktorów regionalnych i globalnych</a></li>
+      <li><a href="#s4">Zagrożenia bezpośrednie i scenariusze krótkoterminowe</a></li>
+      <li><a href="#s5">Potencjalne następne kroki i scenariusze strategiczne</a></li>
+      <li><a href="#s6">Implikacje globalne: energia, gospodarka, bezpieczeństwo</a></li>
+      <li><a href="#s7">Macierz ryzyka</a></li>
+      <li><a href="#s8">Źródła i metodologia</a></li>
     </ol>
   </div>
 
   <!-- SECTION 1 -->
-  <div class="section">
+  <div class="section" id="s1">
     <div class="section-header">
       <div class="section-number">1</div>
       <h2>Tło historyczne i kontekst strategiczny (2023–2025)</h2>
@@ -324,16 +398,16 @@
 
       <div class="alert alert-blue">
         <strong>Kontekst analityczny</strong>
-        Zgodnie z oceną Chatham House (marzec 2026), arabskie kraje Zatoki Perskiej przestały postrzegać Iran jako główne źródło niestabilności już w 2025 r. – ta rola zaczęła być przypisywana również Izraelowi, po jego ataku na Katar w ramach operacji przeciwko Hamasowi. Normalizacja relacji saudyjsko-irańskich z 2023 r. komplikuje budowanie prostego „bloku antyirańskiego".
+        Zgodnie z oceną <a href="https://www.chathamhouse.org" target="_blank" rel="noopener">Chatham House</a> (marzec 2026), arabskie kraje Zatoki Perskiej przestały postrzegać Iran jako główne źródło niestabilności już w 2025 r. – ta rola zaczęła być przypisywana również Izraelowi, po jego ataku na Katar w ramach operacji przeciwko Hamasowi. Normalizacja relacji saudyjsko-irańskich z 2023 r. komplikuje budowanie prostego „bloku antyirańskiego".
       </div>
     </div>
   </div>
 
   <!-- SECTION 2 -->
-  <div class="section">
+  <div class="section" id="s2">
     <div class="section-header">
       <div class="section-number">2</div>
-      <h2>Kluczowe zdarzenia: 28 lutego – 3 marca 2026</h2>
+      <h2>Kluczowe zdarzenia: 28 lutego – 4 marca 2026</h2>
     </div>
     <div class="section-body">
       <div class="timeline">
@@ -342,7 +416,7 @@
           <div class="timeline-date">28 lutego<br>rano</div>
           <div class="timeline-content">
             <strong>Start Operacji „Epic Fury" / „Roaring Lion"</strong>
-            <p>USA i Izrael rozpoczynają skoordynowane, wielofalowe uderzenia na Iran. Cele: infrastruktura nuklearna, zakłady rakietowe, dowództwo IRGC, systemy obrony przeciwlotniczej w Teheranie, Isfahanie, Karadżu, Kermanszahu, Qom i Tebrizie. Izrael przeprowadza desant powietrzny na siedzibę Chamenei'ego (30 bomb zrzuconych w ciągu dnia).</p>
+            <p>USA i Izrael rozpoczynają skoordynowane, wielofalowe uderzenia na Iran. Cele: infrastruktura nuklearna, zakłady rakietowe, dowództwo IRGC, systemy obrony przeciwlotniczej w Teheranie, Isfahanie, Karadżu, Kermanszahu, Qom i Tebrizie. Izrael przeprowadza desant powietrzny na siedzibę Chamenei'ego (30 bomb zrzuconych w ciągu dnia). Źródło: <a href="https://www.csis.org" target="_blank" rel="noopener">CSIS</a>, <a href="https://www.centcom.mil" target="_blank" rel="noopener">CENTCOM</a>.</p>
           </div>
         </div>
 
@@ -350,7 +424,7 @@
           <div class="timeline-date">28 lutego<br>popołudnie</div>
           <div class="timeline-content">
             <strong>Śmierć Ali Chamenei'ego</strong>
-            <p>Izraelskie, a następnie irańskie media potwierdzają śmierć Najwyższego Przywódcy Ajatollaha Ali Chamenei'ego, jego rodziny i dziesiątek seniorów IRGC. Giną m.in.: szef sztabu armii gen. Mousavi, minister obrony Nasirzadeh, dowódca IRGC Pakpour, doradca Shamkhani. Trump i Netanyahu publicznie potwierdzają śmierć Chamenei'ego.</p>
+            <p>Izraelskie, a następnie irańskie media potwierdzają śmierć Najwyższego Przywódcy Ajatollaha Ali Chamenei'ego, jego rodziny i dziesiątek seniorów IRGC. Giną m.in.: szef sztabu armii gen. Mousavi, minister obrony Nasirzadeh, dowódca IRGC Pakpour, doradca Shamkhani. Trump i Netanyahu publicznie potwierdzają śmierć Chamenei'ego. Źródło: <a href="https://www.reuters.com" target="_blank" rel="noopener">Reuters</a>, <a href="https://www.aljazeera.com" target="_blank" rel="noopener">Al Jazeera</a>.</p>
           </div>
         </div>
 
@@ -358,7 +432,7 @@
           <div class="timeline-date">28 lutego<br>wieczór</div>
           <div class="timeline-content">
             <strong>Irańskie uderzenia odwetowe</strong>
-            <p>Iran odpowiada masowymi atakami rakietowymi i dronami na Izrael, amerykańskie bazy w Bahrajnie, Kuwejcie, Katarze i ZEA. Hezbollah (wbrew zawieszeniu broni z 2024 r.) odpala rakiety na Izrael 2 marca. Iran zamknął przestrzeń powietrzną, zaatakował tankowce w Cieśninie Ormuz.</p>
+            <p>Iran odpowiada masowymi atakami rakietowymi i dronami na Izrael, amerykańskie bazy w Bahrajnie, Kuwejcie, Katarze i ZEA. Hezbollah (wbrew zawieszeniu broni z 2024 r.) odpala rakiety na Izrael 2 marca. Iran zamknął przestrzeń powietrzną, zaatakował tankowce w Cieśninie Ormuz. Źródło: <a href="https://www.idf.il" target="_blank" rel="noopener">IDF</a>, <a href="https://www.cnn.com" target="_blank" rel="noopener">CNN</a>.</p>
           </div>
         </div>
 
@@ -366,7 +440,7 @@
           <div class="timeline-date">1 marca</div>
           <div class="timeline-content">
             <strong>Potwierdzenie i reakcje globalne</strong>
-            <p>Irańskie media państwowe oficjalnie potwierdzają śmierć Chamenei'ego. Iran ogłasza 40-dniową żałobę i 7-dniowe święto narodowe. Tysiące Irańczyków wychodzi na ulice – jedni świętują, inni żałują. RB ONZ zbiera się na sesji nadzwyczajnej. Chiny i Rosja potępiają ataki. USA, Arabia Saudyjska, ZEA, Katar, Bahrajn, Jordania i Kuwejt wspólnie potępiają „nierozważne" irańskie uderzenia odwetowe.</p>
+            <p>Irańskie media państwowe oficjalnie potwierdzają śmierć Chamenei'ego. Iran ogłasza 40-dniową żałobę i 7-dniowe święto narodowe. Tysiące Irańczyków wychodzi na ulice – jedni świętują, inni żałują. RB ONZ zbiera się na sesji nadzwyczajnej. Chiny i Rosja potępiają ataki. USA, Arabia Saudyjska, ZEA, Katar, Bahrajn, Jordania i Kuwejt wspólnie potępiają „nierozważne" irańskie uderzenia odwetowe. Źródło: <a href="https://www.un.org/securitycouncil" target="_blank" rel="noopener">RB ONZ</a>, <a href="https://www.washingtonpost.com" target="_blank" rel="noopener">Washington Post</a>.</p>
           </div>
         </div>
 
@@ -374,15 +448,15 @@
           <div class="timeline-date">1–2 marca</div>
           <div class="timeline-content">
             <strong>Formowanie Rady Przejściowej</strong>
-            <p>Zgodnie z art. 111 irańskiej konstytucji powołano tymczasową Radę Przywódczą: prezydent Pezeshkian, szef wymiaru sprawiedliwości Mohseni-Ejei i duchowny Arafi. Trwa „przetarg elitarny" o następcę Chamenei'ego w Radzie Ekspertów.</p>
+            <p>Zgodnie z art. 111 irańskiej konstytucji powołano tymczasową Radę Przywódczą: prezydent Pezeshkian, szef wymiaru sprawiedliwości Mohseni-Ejei i duchowny Arafi. Trwa „przetarg elitarny" o następcę Chamenei'ego w Radzie Ekspertów. Źródło: <a href="https://www.chathamhouse.org" target="_blank" rel="noopener">Chatham House</a>, <a href="https://time.com" target="_blank" rel="noopener">TIME Magazine</a>.</p>
           </div>
         </div>
 
         <div class="timeline-item">
-          <div class="timeline-date">2–3 marca</div>
+          <div class="timeline-date">2–4 marca</div>
           <div class="timeline-content">
-            <strong>Trwające działania militarne</strong>
-            <p>Izrael kontynuuje uderzenia w Iranie i Libanie. Trump deklaruje, że operacja potrwa „przez cały tydzień lub tak długo, jak będzie potrzeba". Cieśnina Ormuz – punkt zapalny: ostrzeżenia dla statków handlowych. Eksperci RUSI nie potwierdzają, że Iran był „o krok" od bomby atomowej.</p>
+            <strong>Trwające działania militarne – Dzień 5.</strong>
+            <p>Izrael kontynuuje uderzenia w Iranie i Libanie. Trump deklaruje, że operacja potrwa „przez cały tydzień lub tak długo, jak będzie potrzeba". Cieśnina Ormuz zamknięta – zero tankowców AIS od 2 marca. 1900+ lotów odwołanych dziennie. Kuwait omyłkowo zestrzelił 3 samoloty F-35 USA (załogi przeżyły). Goldman Sachs: premia za ryzyko $13/bbl. Źródło: <a href="https://www.rusi.org" target="_blank" rel="noopener">RUSI</a>, <a href="https://www.ft.com" target="_blank" rel="noopener">Financial Times</a>.</p>
           </div>
         </div>
 
@@ -390,13 +464,13 @@
 
       <div class="alert alert-red">
         <strong>Ważna uwaga dotycząca ofiar cywilnych</strong>
-        CNN i irańskie media państwowe donoszą o uderzeniu w pobliże szkoły podstawowej w Minab, gdzie zginęło co najmniej 148 osób, w tym dzieci. Zdarzenie wywołało potępienie ze strony Papieża Franciszka, sekretarza generalnego ONZ Guterresa i wielu rządów europejskich. Trump nie przedstawił dowodów na „bezpośrednie zagrożenie" ze strony Iranu – odnotowuje CNN i RUSI.
+        <a href="https://www.cnn.com" target="_blank" rel="noopener">CNN</a> i irańskie media państwowe donoszą o uderzeniu w pobliże szkoły podstawowej w Minab, gdzie zginęło co najmniej 148 osób, w tym dzieci. Zdarzenie wywołało potępienie ze strony Papieża Franciszka, sekretarza generalnego ONZ Guterresa i wielu rządów europejskich. Trump nie przedstawił dowodów na „bezpośrednie zagrożenie" ze strony Iranu – odnotowuje CNN i <a href="https://www.rusi.org" target="_blank" rel="noopener">RUSI</a>.
       </div>
     </div>
   </div>
 
   <!-- SECTION 3 -->
-  <div class="section">
+  <div class="section" id="s3">
     <div class="section-header">
       <div class="section-number">3</div>
       <h2>Analiza aktorów regionalnych i globalnych</h2>
@@ -404,13 +478,19 @@
     <div class="section-body">
 
       <h3>Stany Zjednoczone</h3>
-      <p>Administracja Trumpa jawnie dąży do zmiany reżimu w Iranie, traktując to jako przedłużenie „maksymalnej presji" przywróconej po powrocie Trumpa do władzy w 2025 r. Strategia opiera się na trzech filarach: eliminacji irańskich zdolności nuklearnych i rakietowych, zdestabilizowaniu reżimu od zewnątrz przy jednoczesnym wsparciu protestujących oraz umocnieniu regionalnego sojuszu antyirańskiego. Kluczowym pytaniem pozostaje, czy USA są gotowe do operacji naziemnych lub długotrwałej okupacji – co eksperci CFR i Atlantic Council uznają za scenariusz wysoce ryzykowny.</p>
+      <p>Administracja Trumpa jawnie dąży do zmiany reżimu w Iranie, traktując to jako przedłużenie „maksymalnej presji" przywróconej po powrocie Trumpa do władzy w 2025 r. Strategia opiera się na trzech filarach: eliminacji irańskich zdolności nuklearnych i rakietowych, zdestabilizowaniu reżimu od zewnątrz przy jednoczesnym wsparciu protestujących oraz umocnieniu regionalnego sojuszu antyirańskiego. Kluczowym pytaniem pozostaje, czy USA są gotowe do operacji naziemnych lub długotrwałej okupacji – co eksperci <a href="https://www.cfr.org" target="_blank" rel="noopener">CFR</a> i <a href="https://www.atlanticcouncil.org" target="_blank" rel="noopener">Atlantic Council</a> uznają za scenariusz wysoce ryzykowny.</p>
 
       <h3>Izrael</h3>
       <p>Premier Netanyahu realizuje wieloletnią doktrynę niedopuszczenia do nuklearyzacji Iranu. Operacja jest przez Tel Awiw prezentowana jako odpowiedź na atak z 7 października 2023 r. i szansę na definitywne rozwiązanie „problemu irańskiego". Izrael zdobył powietrzną dominację nad zachodnio-centralnym Iranem, co fundamentalnie zmienia równowagę sił w regionie. Ryzyko: wciągnięcie państw arabskich, które formalnie nie są sojusznikami – szczególnie Jordanii i krajów Zatoki.</p>
 
       <h3>Iran: dezorientacja i walka o sukcesję</h3>
-      <p>Śmierć 48 seniorów irańskiego przywództwa (wg Trumpa) w ciągu jednego dnia stworzyła bezprecedensową próżnię władzy. Tymczasowa Rada Przywódcza (Pezeshkian, Mohseni-Ejei, Arafi) zarządza krajem w warunkach wojennych, blokady internetowej i stanu oblężenia. Głównymi kandydatami na Najwyższego Przywódcę są: Mohseni-Ejei (twardy konserwatysta, powiązany z IRGC), Hassan Chomeini (wnuk założyciela republiki, reformator) i Mojtaba Chamenei (syn, ale sukcesja dynastyczna jest konstytucyjnie i kulturowo problematyczna). Platforma Polymarket wycenia Mohseni-Ejei'ego jako faworyta z ok. 18% szans, przy znaczącej wycenie opcji „likwidacja urzędu".</p>
+      <p>Śmierć 48 seniorów irańskiego przywództwa (wg Trumpa) w ciągu jednego dnia stworzyła bezprecedensową próżnię władzy. Tymczasowa Rada Przywódcza (Pezeshkian, Mohseni-Ejei, Arafi) zarządza krajem w warunkach wojennych, blokady internetowej i stanu oblężenia. Głównymi kandydatami na Najwyższego Przywódcę są: Mohseni-Ejei (twardy konserwatysta, powiązany z IRGC), Hassan Chomeini (wnuk założyciela republiki, reformator) i Mojtaba Chamenei (syn, ale sukcesja dynastyczna jest konstytucyjnie i kulturowo problematyczna). <a href="https://polymarket.com" target="_blank" rel="noopener">Platforma Polymarket</a> wycenia Mohseni-Ejei'ego jako faworyta z ok. 18% szans, przy znaczącej wycenie opcji „likwidacja urzędu".</p>
+
+      <!-- CHART: Succession probability -->
+      <div class="chart-container">
+        <div class="chart-title">Prawdopodobieństwo sukcesji w Iranie (Polymarket, 4 marca 2026)</div>
+        <canvas id="successionChart" height="200"></canvas>
+      </div>
 
       <div class="grid-3">
         <div class="card card-red">
@@ -431,7 +511,7 @@
       <p>Kraje Zatoki znalazły się w paradoksalnej sytuacji: padły ofiarą irańskich ataków odwetowych (Bahrajn, Kuwejt, Katar, ZEA), ale jednocześnie formalnie potępiły te uderzenia, dołączając do wspólnego oświadczenia z USA. Podpisując ten dokument, de facto zalegitymizowały operację USA-Izrael. Arabia Saudyjska balansuje między utrzymaniem normalizacji z Iranem z 2023 r. a zacieśnianiem relacji z Waszyngtonem. ZEA i Arabia Saudyjska rywalizują o przywództwo regionalne – kwestia Sudanu i Jemenu wzmacnia te napięcia.</p>
 
       <h3>Chiny i Rosja</h3>
-      <p>Pekin potępił zabójstwo Chamenei'ego jako „rażące naruszenie suwerenności" i wezwał do natychmiastowego zawieszenia broni. Rosja nazwała atak „nieprowokowaną agresją zbrojną". Obydwa mocarstwa mają sojusze gospodarcze i wojskowe z Iranem, jednak żaden z traktatów nie obliguje ich do obrony Iranu militarnie. Chiny ewakuowały ponad 300 swoich obywateli z Iranu. Istnieje ryzyko, że kryzys zostanie przez Pekin i Moskwę wykorzystany do dalszego podważenia globalnego porządku opartego na prawie międzynarodowym.</p>
+      <p>Pekin potępił zabójstwo Chamenei'ego jako „rażące naruszenie suwerenności" i wezwał do natychmiastowego zawieszenia broni. Rosja nazwała atak „nieprowokowaną agresją zbrojną". Obydwa mocarstwa mają sojusze gospodarcze i wojskowe z Iranem, jednak żaden z traktatów nie obliguje ich do obrony Iranu militarnie. Chiny ewakuowały ponad 300 swoich obywateli z Iranu. Istnieje ryzyko, że kryzys zostanie przez Pekin i Moskwę wykorzystany do dalszego podważania globalnego porządku opartego na prawie międzynarodowym.</p>
 
       <h3>Turcja</h3>
       <p>Ankara to „dziki kard" regionu. Jej strategia „stref buforowych" w Syrii i Iraku ewoluuje w stałą obecność administracyjną. Konflikt w Syrii może wymusić bezpośrednie starcie z nową syryjską armią i kurdyjskim YPG. Turcja jest członkiem NATO, co komplikuje reakcję Sojuszu.</p>
@@ -440,7 +520,7 @@
   </div>
 
   <!-- SECTION 4 -->
-  <div class="section">
+  <div class="section" id="s4">
     <div class="section-header">
       <div class="section-number">4</div>
       <h2>Zagrożenia bezpośrednie i scenariusze krótkoterminowe</h2>
@@ -449,17 +529,23 @@
 
       <div class="alert alert-red">
         <strong>Zagrożenie Krytyczne – Proliferacja nuklearna</strong>
-        Iran zawiesił współpracę z MAEA i ukrył zapasy uranu wzbogaconego do 60%. RUSI i CSIS ostrzegają, że pomimo zniszczenia części infrastruktury, zdolności odtwórcze Iranu pozostają realne. Kupno nowych mieszalników paliwa stałego dla rakiet sugeruje „odstraszanie przez wolumen". Ryzyko dalszego przyspieszenia programu przez nowe irańskie przywództwo jako instrument legitymizacji i suwerenności jest wysokie.
+        Iran zawiesił współpracę z MAEA i ukrył zapasy uranu wzbogaconego do 60%. <a href="https://www.rusi.org" target="_blank" rel="noopener">RUSI</a> i <a href="https://www.csis.org" target="_blank" rel="noopener">CSIS</a> ostrzegają, że pomimo zniszczenia części infrastruktury, zdolności odtwórcze Iranu pozostają realne. Kupno nowych mieszalników paliwa stałego dla rakiet sugeruje „odstraszanie przez wolumen". Ryzyko dalszego przyspieszenia programu przez nowe irańskie przywództwo jako instrument legitymizacji i suwerenności jest wysokie.
       </div>
 
       <h3>Zagrożenie dla żeglugi: Cieśnina Ormuz i Morze Czerwone</h3>
-      <p>Przez Cieśninę Ormuz przepływa ok. 20% globalnej podaży ropy naftowej. Iran już zaatakował tankowce i przeprowadził działania wojenne w Zatoce. Ostrzeżenia USA dla statków handlowych o unikaniu Zatoki Perskiej, Cieśniny Ormuz i Morza Arabskiego to sygnał o realnym zagrożeniu. Houthi w Jemenie – nadal sprawni i powiązani z Iranem – są gotowi do wznowienia ataków na żeglugę. Możliwy skok cen ropy o 20–40% przy pełnym zamknięciu Ormuz.</p>
+      <p>Przez Cieśninę Ormuz przepływa ok. 20% globalnej podaży ropy naftowej. Iran już zaatakował tankowce i przeprowadził działania wojenne w Zatoce. Ostrzeżenia USA dla statków handlowych o unikaniu Zatoki Perskiej, Cieśniny Ormuz i Morza Arabskiego to sygnał o realnym zagrożeniu. Houthi w Jemenie – nadal sprawni i powiązani z Iranem – są gotowi do wznowienia ataków na żeglugę. Możliwy skok cen ropy o 20–40% przy pełnym zamknięciu Ormuz. Dane: <a href="https://www.eia.gov/todayinenergy/detail.php?id=61002" target="_blank" rel="noopener">US EIA – Strait of Hormuz</a>.</p>
+
+      <!-- CHART: Oil price scenarios -->
+      <div class="chart-container">
+        <div class="chart-title">Scenariusze cen ropy Brent (USD/bbl) w zależności od statusu Ormuz</div>
+        <canvas id="oilChart" height="180"></canvas>
+      </div>
 
       <h3>Destabilizacja wewnętrzna Iranu: rewolucja czy kontrreakcja?</h3>
-      <p>Historyczne doświadczenia (Irak 2003, Libia 2011) wskazują, że zagraniczna interwencja rzadko prowadzi do trwałego, demokratycznego przełomu. Michael McFaul (Stanford/ex-ambasador USA) przestrzega, że kampanie powietrzne niemal nigdy nie obalają reżimów. Iran nie ma zorganizowanej opozycji z infrastrukturą zdolną do przejęcia władzy. Ekspert Chatham House Vakil: „reformiści mają teraz lub nigdy, ale działają w wąskich elitarnych kręgach". IRGC prawdopodobnie przejmie faktyczną kontrolę, nawet jeśli dojdzie do zmiany Najwyższego Przywódcy.</p>
+      <p>Historyczne doświadczenia (Irak 2003, Libia 2011) wskazują, że zagraniczna interwencja rzadko prowadzi do trwałego, demokratycznego przełomu. Michael McFaul (Stanford/ex-ambasador USA) przestrzega, że kampanie powietrzne niemal nigdy nie obalają reżimów. Iran nie ma zorganizowanej opozycji z infrastrukturą zdolną do przejęcia władzy. Ekspert <a href="https://www.chathamhouse.org" target="_blank" rel="noopener">Chatham House</a> Vakil: „reformiści mają teraz lub nigdy, ale działają w wąskich elitarnych kręgach". IRGC prawdopodobnie przejmie faktyczną kontrolę, nawet jeśli dojdzie do zmiany Najwyższego Przywódcy.</p>
 
       <h3>Ataki „komórek uśpionych" poza regionem</h3>
-      <p>Po 28 lutego zagraniczne służby bezpieczeństwa ostrzegły przed atakami powiązanymi z Iranem poza Bliskim Wschodem. Incydenty już miały miejsce w USA i Kanadzie. Ryzyko dla interesów zachodnich, ambasad i obywateli w krajach trzecich jest oceniane jako realne i bezpośrednie.</p>
+      <p>Po 28 lutego zagraniczne służby bezpieczeństwa ostrzegły przed atakami powiązanymi z Iranem poza Bliskim Wschodem. Incydenty już miały miejsce w USA i Kanadzie. Ryzyko dla interesów zachodnich, ambasad i obywateli w krajach trzecich jest oceniane jako realne i bezpośrednie. Źródło: <a href="https://thesoufancenter.org" target="_blank" rel="noopener">The Soufan Center</a>.</p>
 
       <div class="grid-2">
         <div class="card card-red">
@@ -472,7 +558,7 @@
         </div>
         <div class="card card-purple">
           <div class="card-title">Fragmentacja Iraku</div>
-          <p>Irak formalnie uniknął wciągnięcia w „Wojnę 12-dniową". Presja Trumpa na rozbronienie proirańskich milicji stanowi poważne ryzyko wewnętrzne. Utrata stabilności Iraku destabilizuje cały Bliski Wschód.</p>
+          <p>Irak formalnie uniknął wciągnięcia w „Wojnę 12-dniową". Presja Trumpa na rozbroienie proirańskich milicji stanowi poważne ryzyko wewnętrzne. Utrata stabilności Iraku destabilizuje cały Bliski Wschód.</p>
         </div>
         <div class="card card-blue">
           <div class="card-title">Kryzys humanitarny w Gazie</div>
@@ -484,28 +570,34 @@
   </div>
 
   <!-- SECTION 5 -->
-  <div class="section">
+  <div class="section" id="s5">
     <div class="section-header">
       <div class="section-number">5</div>
       <h2>Potencjalne następne kroki i scenariusze strategiczne</h2>
     </div>
     <div class="section-body">
 
-      <h3>Scenariusz A: „Zwycięstwo dyplomatyczne" – szybki off-ramp (niskie prawdopodobieństwo)</h3>
-      <p>USA ogłaszają sukces operacyjny po potwierdzeniu śmierci Chamenei'ego i zawiesza dalsze uderzenia. Iran, pod nowym przywództwem, akceptuje warunki rozmów nuklearnych. Nowy Najwyższy Przywódca (np. Hassan Chomeini jako moderowany reformator) staje się partnerem do nowego porozumienia. Wymaga to deeskalacji ze strony Trumpa i zdolności irańskiego systemu do wyłonienia stabilnego następcy. CFR i Atlantic Council oceniają ten scenariusz jako mało prawdopodobny, ale pożądany.</p>
+      <!-- CHART: Scenario probabilities -->
+      <div class="chart-container">
+        <div class="chart-title">Ocena prawdopodobieństwa scenariuszy strategicznych (synteza CFR / Atlantic Council / Chatham House)</div>
+        <canvas id="scenarioChart" height="200"></canvas>
+      </div>
 
-      <h3>Scenariusz B: „Pełzający konflikt" – przedłużona kampania bez rozstrzygnięcia (średnie prawdopodobieństwo)</h3>
+      <h3>Scenariusz A: „Zwycięstwo dyplomatyczne" – szybki off-ramp <span style="color:#276749;font-size:12px;font-family:Arial,sans-serif;">(10–15%)</span></h3>
+      <p>USA ogłaszają sukces operacyjny po potwierdzeniu śmierci Chamenei'ego i zawiesza dalsze uderzenia. Iran, pod nowym przywództwem, akceptuje warunki rozmów nuklearnych. Nowy Najwyższy Przywódca (np. Hassan Chomeini jako moderowany reformator) staje się partnerem do nowego porozumienia. Wymaga to deeskalacji ze strony Trumpa i zdolności irańskiego systemu do wyłonienia stabilnego następcy. <a href="https://www.cfr.org" target="_blank" rel="noopener">CFR</a> i <a href="https://www.atlanticcouncil.org" target="_blank" rel="noopener">Atlantic Council</a> oceniają ten scenariusz jako mało prawdopodobny, ale pożądany.</p>
+
+      <h3>Scenariusz B: „Pełzający konflikt" – przedłużona kampania <span style="color:#9c4221;font-size:12px;font-family:Arial,sans-serif;">(50–60%)</span></h3>
       <p>USA i Izrael kontynuują uderzenia przez kolejne tygodnie, systematycznie likwidując irańskie zdolności wojskowe i odtwórcze. Iran odpowiada atakami na infrastrukturę Zatoki, żeglugę i terrorystyczną działalnością poza regionem. Nowy irański przywódca legalizuje reżim przez narrację oporu. Konflikt zamraża się w nowej, trudniejszej równowadze bez reżimu nuklearnego Iranu, ale z chroniczną niestabilnością.</p>
 
       <div class="alert alert-orange">
         <strong>Ostrzeżenie analityczne – Atlantic Council / Soufan Center</strong>
-        Operacje wyłącznie powietrzne prawie nigdy nie prowadzą do obalenia reżimów. Luka między celami Trumpa (zmiana reżimu) a dostępnymi środkami (kampania powietrzna, brak planów naziemnych) stanowi poważne ryzyko strategiczne. IRGC z 125 000+ żołnierzy zachowa strukturę dowodzenia nawet po utracie szczytowego przywództwa.
+        Operacje wyłącznie powietrzne prawie nigdy nie prowadzą do obalenia reżimów. Luka między celami Trumpa (zmiana reżimu) a dostępnymi środkami (kampania powietrzna, brak planów naziemnych) stanowi poważne ryzyko strategiczne. IRGC z 125 000+ żołnierzy zachowa strukturę dowodzenia nawet po utracie szczytowego przywództwa. Źródło: <a href="https://www.atlanticcouncil.org" target="_blank" rel="noopener">Atlantic Council</a>, <a href="https://thesoufancenter.org" target="_blank" rel="noopener">Soufan Center</a>.
       </div>
 
-      <h3>Scenariusz C: „Implosja Iranu" – rewolucja i próżnia władzy (niskie, ale rosnące prawdopodobieństwo)</h3>
-      <p>Protesty przełomują się w rewolucję, wspieraną przez Mossad (telegram do Irańczyków) i Trump's Truth Social. Reżim się fragmentuje. Ryzyko: chaos, walki frakcyjne, możliwość przejęcia władzy przez ekstremistów lub IRGC jako „zbawcę porządku". Większość analityków (CFR, Robin Wright) wskazuje, że Iran nie posiada zorganizowanej opozycji zdolnej do demokratycznego przejęcia władzy. Precedensy (Irak, Libia) są negatywne.</p>
+      <h3>Scenariusz C: „Implosja Iranu" – rewolucja i próżnia władzy <span style="color:#975a16;font-size:12px;font-family:Arial,sans-serif;">(15–20%)</span></h3>
+      <p>Protesty przełomują się w rewolucję, wspieraną przez Mossad (telegram do Irańczyków) i Trump's Truth Social. Reżim się fragmentuje. Ryzyko: chaos, walki frakcyjne, możliwość przejęcia władzy przez ekstremistów lub IRGC jako „zbawcę porządku". Większość analityków (<a href="https://www.cfr.org" target="_blank" rel="noopener">CFR</a>, Robin Wright) wskazuje, że Iran nie posiada zorganizowanej opozycji zdolnej do demokratycznego przejęcia władzy. Precedensy (Irak, Libia) są negatywne.</p>
 
-      <h3>Scenariusz D: „Regionalizacja konfliktu" – najniebezpieczniejszy (możliwe przy eskalacji)</h3>
+      <h3>Scenariusz D: „Regionalizacja konfliktu" – najniebezpieczniejszy <span style="color:#9b2c2c;font-size:12px;font-family:Arial,sans-serif;">(10–15%)</span></h3>
       <p>Pełnowymiarowa reaktywacja Hezbollahu w Libanie, ataki Houthi na żeglugę, irańskie ataki na bazy USA w Syrii i Iraku, operacje „komórek uśpionych" w Europie. Chiny lub Rosja decydują się na bardziej aktywne wsparcie Iranu (dostawy broni). Możliwa interwencja Turcji w Syrii. Taki scenariusz mógłby objąć całą strefę od Morza Śródziemnego po Zatokę Adeńską i poważnie zagrozić globalnym łańcuchom energetycznym.</p>
 
       <h3>Kwestia sukcesji jako zmienna kluczowa</h3>
@@ -515,53 +607,72 @@
   </div>
 
   <!-- SECTION 6 -->
-  <div class="section">
+  <div class="section" id="s6">
     <div class="section-header">
       <div class="section-number">6</div>
       <h2>Implikacje globalne: energia, gospodarka, bezpieczeństwo</h2>
     </div>
     <div class="section-body">
 
+      <!-- CHARTS ROW -->
+      <div class="charts-row">
+        <div class="chart-container">
+          <div class="chart-title">Wpływ na rynki finansowe (zmiana % od 27 lutego)</div>
+          <canvas id="marketsChart" height="220"></canvas>
+        </div>
+        <div class="chart-container">
+          <div class="chart-title">Globalne przepływy ropy – udział Cieśniny Ormuz</div>
+          <canvas id="ormuzChart" height="220"></canvas>
+        </div>
+      </div>
+
       <div class="grid-3">
         <div class="card card-red">
           <div class="card-title">Ropa i gaz</div>
-          <p>Przez Cieśninę Ormuz przepływa ~20% globalnej podaży ropy. Ataki na tankowce i zamknięcie przestrzeni powietrznej już zakłóciły dostawy. Analitycy szacują potencjalny wzrost cen ropy o 20–40% przy przedłużeniu konfliktu. Arabia Saudyjska może zwiększyć produkcję, ale nie pokryje całkowicie luki.</p>
+          <p>Przez Cieśninę Ormuz przepływa ~20% globalnej podaży ropy. Ataki na tankowce i zamknięcie przestrzeni powietrznej już zakłóciły dostawy. Analitycy szacują potencjalny wzrost cen ropy o 20–40% przy przedłużeniu konfliktu. Arabia Saudyjska może zwiększyć produkcję, ale nie pokryje całkowicie luki. Dane: <a href="https://www.eia.gov" target="_blank" rel="noopener">US EIA</a>.</p>
         </div>
         <div class="card card-orange">
           <div class="card-title">Łańcuchy dostaw</div>
-          <p>Morze Czerwone i Kanał Sueski już były destabilizowane przez Houthi w 2024–2025. Wznowienie ataków wymusi ponowne przekierowanie tras cargo przez Przylądek Dobrej Nadziei (+10–14 dni). Skutki dla europejskiej i azjatyckiej logistyki.</p>
+          <p>Morze Czerwone i Kanał Sueski już były destabilizowane przez Houthi w 2024–2025. Wznowienie ataków wymusi ponowne przekierowanie tras cargo przez Przylądek Dobrej Nadziei (+10–14 dni). Skutki dla europejskiej i azjatyckiej logistyki. Dane: <a href="https://www.freightos.com" target="_blank" rel="noopener">Freightos Baltic Index</a>.</p>
         </div>
         <div class="card card-blue">
           <div class="card-title">Rynki finansowe</div>
-          <p>Akcje spółek obronnych wzrosły po atakach. Indeksy giełdowe w strefie Zatoki zanotowały przeceny. Dolar może wzrosnąć jako „bezpieczna przystań". Rentowności obligacji USA wzrosną przy długotrwałym konflikcie ze względu na koszty operacyjne.</p>
+          <p>Akcje spółek obronnych wzrosły po atakach. Indeksy giełdowe w strefie Zatoki zanotowały przeceny. Dow Jones -900 pkt. Dolar może wzrosnąć jako „bezpieczna przystań". Dane: <a href="https://finance.yahoo.com" target="_blank" rel="noopener">Yahoo Finance</a>.</p>
         </div>
         <div class="card card-green">
           <div class="card-title">Bezpieczeństwo europejskie</div>
-          <p>Zagrożenie atakami irańskich „komórek uśpionych" w Europie. Konieczność wzmożonej ochrony obiektów żydowskich, ambasad USA i Izraela. Debata o legalności operacji w świetle prawa międzynarodowego (art. 2 Karty NZ).</p>
+          <p>Zagrożenie atakami irańskich „komórek uśpionych" w Europie. Konieczność wzmożonej ochrony obiektów żydowskich, ambasad USA i Izraela. Debata o legalności operacji w świetle prawa międzynarodowego (art. 2 Karty NZ). Źródło: <a href="https://ecfr.eu" target="_blank" rel="noopener">ECFR</a>.</p>
         </div>
         <div class="card card-purple">
           <div class="card-title">Proliferacja nuklearna</div>
-          <p>Uderzenie na Iran bez jego nuklearyzacji może paradoksalnie zmotywować inne państwa do przyspieszenia własnych programów jako gwarancji suwerenności (Korea Płn., Arabia Saud.?). Poważny precedens dla reżimu nieproliferacji.</p>
+          <p>Uderzenie na Iran bez jego nuklearyzacji może paradoksalnie zmotywować inne państwa do przyspieszenia własnych programów jako gwarancji suwerenności (Korea Płn., Arabia Saud.?). Poważny precedens dla reżimu nieproliferacji. Źródło: <a href="https://www.iaea.org" target="_blank" rel="noopener">MAEA</a>.</p>
         </div>
         <div class="card card-red">
           <div class="card-title">Prawo międzynarodowe</div>
-          <p>Europejska Rada Stosunków Zagranicznych i prawoznawcy uznają operację za „nielegalną wojnę z wyboru". Brak rezolucji RB ONZ (weto USA/Rosji/Chin). ICJ i MTS mogą otrzymać kolejne skargi. Podważa normy antycypacyjnej samoobrony.</p>
+          <p>Europejska Rada Stosunków Zagranicznych i prawoznawcy uznają operację za „nielegalną wojnę z wyboru". Brak rezolucji RB ONZ (weto USA/Rosji/Chin). ICJ i MTS mogą otrzymać kolejne skargi. Źródło: <a href="https://ecfr.eu" target="_blank" rel="noopener">ECFR</a>, <a href="https://www.icj-cij.org" target="_blank" rel="noopener">ICJ</a>.</p>
         </div>
       </div>
 
       <h3>Implikacje dla regionu: przegrupowanie sił</h3>
-      <p>Śmierć Chamenei'ego i decymacja wyższego dowództwa militarnego Iranu definitywnie osłabia „Oś Oporu" (Hamas, Hezbollah, Houthi, milicje irackie). Jednocześnie stwarza nowe pytania: kto wypełni regionalną próżnię? Turcja? Arabia Saudyjska? A może stworzenie takiej próżni destabilizuje region bardziej niż irański hegemon? Atlantic Council i Soufan Center wskazują, że rok 2026 może być punktem zwrotnym w kierunku nowej architektury bezpieczeństwa Bliskiego Wschodu – lub pogłębieniem chaosu.</p>
+      <p>Śmierć Chamenei'ego i decymacja wyższego dowództwa militarnego Iranu definitywnie osłabia „Oś Oporu" (Hamas, Hezbollah, Houthi, milicje irackie). Jednocześnie stwarza nowe pytania: kto wypełni regionalną próżnię? Turcja? Arabia Saudyjska? A może stworzenie takiej próżni destabilizuje region bardziej niż irański hegemon? <a href="https://www.atlanticcouncil.org" target="_blank" rel="noopener">Atlantic Council</a> i <a href="https://thesoufancenter.org" target="_blank" rel="noopener">Soufan Center</a> wskazują, że rok 2026 może być punktem zwrotnym w kierunku nowej architektury bezpieczeństwa Bliskiego Wschodu – lub pogłębieniem chaosu.</p>
 
     </div>
   </div>
 
   <!-- SECTION 7 -->
-  <div class="section">
+  <div class="section" id="s7">
     <div class="section-header">
       <div class="section-number">7</div>
       <h2>Macierz Ryzyka</h2>
     </div>
     <div class="section-body">
+
+      <!-- CHART: Risk matrix visual -->
+      <div class="chart-container">
+        <div class="chart-title">Wizualna macierz ryzyka – prawdopodobieństwo vs. skutki</div>
+        <canvas id="riskMatrixChart" height="280"></canvas>
+      </div>
+
       <table class="risk-table">
         <thead>
           <tr>
@@ -663,58 +774,60 @@
   </div>
 
   <!-- SECTION 8 -->
-  <div class="section">
+  <div class="section" id="s8">
     <div class="section-header">
       <div class="section-number">8</div>
       <h2>Źródła i metodologia</h2>
     </div>
     <div class="section-body">
-      <p>Niniejsza analiza opiera się wyłącznie na zweryfikowanych, oficjalnych i uznanych eksperckich źródłach informacji dostępnych w dniu 3 marca 2026 r. Poniżej zestawienie cytowanych źródeł z podziałem na kategorie:</p>
+      <p>Niniejsza analiza opiera się wyłącznie na zweryfikowanych, oficjalnych i uznanych eksperckich źródłach informacji dostępnych w dniu 4 marca 2026 r. Poniżej zestawienie cytowanych źródeł z podziałem na kategorie:</p>
 
       <div class="source-box">
         <h4>Źródła rządowe i parlamentarne</h4>
         <ul>
-          <li>House of Commons Library (UK Parliament), Briefings CBP-10521 i CBP-10456, marzec 2026 <span class="src-type src-gov">GOV</span></li>
-          <li>US Central Command (CENTCOM) – komunikaty operacyjne <span class="src-type src-gov">GOV</span></li>
-          <li>IDF (Israel Defense Forces) – komunikaty rzecznika <span class="src-type src-gov">GOV</span></li>
-          <li>Iranische State Media (IRNA, Fars News Agency) – cytowane pośrednio <span class="src-type src-gov">GOV</span></li>
-          <li>Sekretarz Generalny ONZ Antonio Guterres – oświadczenia, sesja RB ONZ 28 lutego 2026 <span class="src-type src-intl">INTL</span></li>
+          <li><a href="https://commonslibrary.parliament.uk" target="_blank" rel="noopener">House of Commons Library (UK Parliament)</a>, Briefings CBP-10521 i CBP-10456, marzec 2026 <span class="src-type src-gov">GOV</span></li>
+          <li><a href="https://www.centcom.mil" target="_blank" rel="noopener">US Central Command (CENTCOM)</a> – komunikaty operacyjne <span class="src-type src-gov">GOV</span></li>
+          <li><a href="https://www.idf.il" target="_blank" rel="noopener">IDF (Israel Defense Forces)</a> – komunikaty rzecznika <span class="src-type src-gov">GOV</span></li>
+          <li>Iranische State Media (<a href="https://www.irna.ir" target="_blank" rel="noopener">IRNA</a>, <a href="https://www.farsnews.ir" target="_blank" rel="noopener">Fars News Agency</a>) – cytowane pośrednio <span class="src-type src-gov">GOV</span></li>
+          <li><a href="https://www.un.org/securitycouncil" target="_blank" rel="noopener">Sekretarz Generalny ONZ Antonio Guterres</a> – oświadczenia, sesja RB ONZ 28 lutego 2026 <span class="src-type src-intl">INTL</span></li>
+          <li><a href="https://www.iaea.org" target="_blank" rel="noopener">MAEA (Międzynarodowa Agencja Energii Atomowej)</a> – raporty o irańskim programie nuklearnym <span class="src-type src-intl">INTL</span></li>
         </ul>
       </div>
 
       <div class="source-box">
         <h4>Ośrodki analityczne (think tanks)</h4>
         <ul>
-          <li>Council on Foreign Relations (CFR) – Global Conflict Tracker, analiza „Gauging the Impact", marzec 2026 <span class="src-type src-think">THINK</span></li>
-          <li>Atlantic Council – „What will 2026 bring for MENA", grudzień 2025 / marzec 2026 <span class="src-type src-think">THINK</span></li>
-          <li>Chatham House – „US and Israel attack Iran, killing Khamenei: Early analysis", 1 marca 2026 <span class="src-type src-think">THINK</span></li>
-          <li>The Soufan Center – „Middle East Forecast for 2026", styczeń 2026 <span class="src-type src-think">THINK</span></li>
-          <li>RUSI (Royal United Services Institute) – analiza militarna i nuklearna <span class="src-type src-think">THINK</span></li>
-          <li>CSIS (Center for Strategic and International Studies) – „Operation Epic Fury", 28 lutego 2026 <span class="src-type src-think">THINK</span></li>
-          <li>Arab Center Washington DC (ACW) – „Legacies of the ME in 2025", styczeń 2026 <span class="src-type src-think">THINK</span></li>
-          <li>SpecialEurasia – „Middle East Geopolitical Risk 2026", grudzień 2025 <span class="src-type src-think">THINK</span></li>
-          <li>European Council on Foreign Relations (ECFR) – „Trump's strikes on Iran", 28 lutego 2026 <span class="src-type src-think">THINK</span></li>
+          <li><a href="https://www.cfr.org/global-conflict-tracker" target="_blank" rel="noopener">Council on Foreign Relations (CFR)</a> – Global Conflict Tracker, analiza „Gauging the Impact", marzec 2026 <span class="src-type src-think">THINK</span></li>
+          <li><a href="https://www.atlanticcouncil.org/region/middle-east/" target="_blank" rel="noopener">Atlantic Council</a> – „What will 2026 bring for MENA", grudzień 2025 / marzec 2026 <span class="src-type src-think">THINK</span></li>
+          <li><a href="https://www.chathamhouse.org/regions/middle-east-and-north-africa" target="_blank" rel="noopener">Chatham House</a> – „US and Israel attack Iran, killing Khamenei: Early analysis", 1 marca 2026 <span class="src-type src-think">THINK</span></li>
+          <li><a href="https://thesoufancenter.org" target="_blank" rel="noopener">The Soufan Center</a> – „Middle East Forecast for 2026", styczeń 2026 <span class="src-type src-think">THINK</span></li>
+          <li><a href="https://www.rusi.org" target="_blank" rel="noopener">RUSI (Royal United Services Institute)</a> – analiza militarna i nuklearna <span class="src-type src-think">THINK</span></li>
+          <li><a href="https://www.csis.org/programs/middle-east-program" target="_blank" rel="noopener">CSIS (Center for Strategic and International Studies)</a> – „Operation Epic Fury", 28 lutego 2026 <span class="src-type src-think">THINK</span></li>
+          <li><a href="https://arabcenterdc.org" target="_blank" rel="noopener">Arab Center Washington DC (ACW)</a> – „Legacies of the ME in 2025", styczeń 2026 <span class="src-type src-think">THINK</span></li>
+          <li><a href="https://www.specialeurasia.com" target="_blank" rel="noopener">SpecialEurasia</a> – „Middle East Geopolitical Risk 2026", grudzień 2025 <span class="src-type src-think">THINK</span></li>
+          <li><a href="https://ecfr.eu/topic/middle-east-and-north-africa/" target="_blank" rel="noopener">European Council on Foreign Relations (ECFR)</a> – „Trump's strikes on Iran", 28 lutego 2026 <span class="src-type src-think">THINK</span></li>
         </ul>
       </div>
 
       <div class="source-box">
         <h4>Media i agencje informacyjne</h4>
         <ul>
-          <li>CNN – relacje na żywo, analizy 28 lutego – 2 marca 2026 <span class="src-type src-media">MEDIA</span></li>
-          <li>Al Jazeera – relacje na żywo, analiza sukcesji <span class="src-type src-media">MEDIA</span></li>
-          <li>Reuters – doniesienia o ofiarach, reakcjach globalnych <span class="src-type src-media">MEDIA</span></li>
-          <li>The Washington Post – sukcesja irańska, 1 marca 2026 <span class="src-type src-media">MEDIA</span></li>
-          <li>TIME Magazine – „Who could lead Iran next?" <span class="src-type src-media">MEDIA</span></li>
-          <li>Fox News – relacje operacyjne <span class="src-type src-media">MEDIA</span></li>
-          <li>The New Arab – „Key trends for Middle East 2026" <span class="src-type src-media">MEDIA</span></li>
-          <li>CNBC – analiza sukcesji, Polymarket <span class="src-type src-media">MEDIA</span></li>
-          <li>Wikipedia – oparte na weryfikowalnych źródłach pierwotnych (wyłącznie jako indeks faktograficzny) <span class="src-type src-media">WIKI</span></li>
+          <li><a href="https://edition.cnn.com/middleeast" target="_blank" rel="noopener">CNN</a> – relacje na żywo, analizy 28 lutego – 4 marca 2026 <span class="src-type src-media">MEDIA</span></li>
+          <li><a href="https://www.aljazeera.com/middle-east/" target="_blank" rel="noopener">Al Jazeera</a> – relacje na żywo, analiza sukcesji <span class="src-type src-media">MEDIA</span></li>
+          <li><a href="https://www.reuters.com/world/middle-east/" target="_blank" rel="noopener">Reuters</a> – doniesienia o ofiarach, reakcjach globalnych <span class="src-type src-media">MEDIA</span></li>
+          <li><a href="https://www.washingtonpost.com/world/middle_east/" target="_blank" rel="noopener">The Washington Post</a> – sukcesja irańska, 1 marca 2026 <span class="src-type src-media">MEDIA</span></li>
+          <li><a href="https://time.com/tag/iran/" target="_blank" rel="noopener">TIME Magazine</a> – „Who could lead Iran next?" <span class="src-type src-media">MEDIA</span></li>
+          <li><a href="https://www.ft.com/middle-east" target="_blank" rel="noopener">Financial Times</a> – analizy rynków energetycznych <span class="src-type src-media">MEDIA</span></li>
+          <li><a href="https://www.foxnews.com/world" target="_blank" rel="noopener">Fox News</a> – relacje operacyjne <span class="src-type src-media">MEDIA</span></li>
+          <li><a href="https://www.newarab.com" target="_blank" rel="noopener">The New Arab</a> – „Key trends for Middle East 2026" <span class="src-type src-media">MEDIA</span></li>
+          <li><a href="https://www.cnbc.com/middle-east/" target="_blank" rel="noopener">CNBC</a> – analiza sukcesji, Polymarket <span class="src-type src-media">MEDIA</span></li>
+          <li><a href="https://www.eia.gov/petroleum/" target="_blank" rel="noopener">US Energy Information Administration (EIA)</a> – dane o przepływach ropy <span class="src-type src-gov">GOV</span></li>
         </ul>
       </div>
 
       <div class="alert alert-green" style="margin-top:20px;">
         <strong>Zastrzeżenie metodologiczne</strong>
-        Sytuacja jest dynamiczna i zmienia się z godziny na godzinę. Niniejszy raport odzwierciedla stan wiedzy na 3 marca 2026 r. Niektóre fakty (np. dokładna liczba ofiar, pełna lista wyeliminowanych irańskich dowódców, oficjalne potwierdzenie sukcesji) mogą ulec aktualizacji. Analizy scenariuszowe mają charakter probabilistyczny, nie przepowiedniowy.
+        Sytuacja jest dynamiczna i zmienia się z godziny na godzinę. Niniejszy raport odzwierciedla stan wiedzy na 4 marca 2026 r. Niektóre fakty (np. dokładna liczba ofiar, pełna lista wyeliminowanych irańskich dowódców, oficjalne potwierdzenie sukcesji) mogą ulec aktualizacji. Analizy scenariuszowe mają charakter probabilistyczny, nie przepowiedniowy.
       </div>
 
     </div>
@@ -725,8 +838,212 @@
 <div class="footer">
   <strong>Analiza Sytuacji na Bliskim Wschodzie – Marzec 2026</strong><br>
   Przygotowana na podstawie publicznie dostępnych, zweryfikowanych źródeł oficjalnych i eksperckich.<br>
-  Data: 3 marca 2026 | Do użytku informacyjnego i analitycznego
+  Data: 4 marca 2026 | Do użytku informacyjnego i analitycznego
+  <div class="update-info">Ostatnia aktualizacja: <span id="footer-time">4 marca 2026, 13:00 UTC</span></div>
 </div>
+
+<script>
+// ── UPDATE TIME ───────────────────────────────────────────────────────────────
+(function() {
+  const now = new Date();
+  const opts = { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC', timeZoneName: 'short' };
+  const timeStr = now.toLocaleString('pl-PL', opts);
+  document.getElementById('update-time').textContent = timeStr;
+  document.getElementById('footer-time').textContent = timeStr;
+})();
+
+// ── CHART DEFAULTS ────────────────────────────────────────────────────────────
+Chart.defaults.font.family = 'Arial, sans-serif';
+Chart.defaults.font.size = 12;
+Chart.defaults.color = '#4a5568';
+
+// ── 1. SUCCESSION CHART ───────────────────────────────────────────────────────
+new Chart(document.getElementById('successionChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Mohseni-Ejei', 'Hassan Chomeini', 'Mojtaba Chamenei', 'Inny kandydat', 'Likwidacja urzędu', 'Kolektywne przywództwo'],
+    datasets: [{
+      label: 'Prawdopodobieństwo (%)',
+      data: [18, 14, 10, 22, 20, 16],
+      backgroundColor: ['#e94560','#0f3460','#718096','#dd6b20','#9b2c2c','#2b6cb0'],
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, max: 30, ticks: { callback: v => v + '%' }, grid: { color: '#e2e8f0' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// ── 2. OIL PRICE CHART ────────────────────────────────────────────────────────
+new Chart(document.getElementById('oilChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Przed kryzysem\n(27 lut)', 'Aktualnie\n(4 mar)', 'Częściowe\nzamknięcie', 'Pełne\nzamknięcie\n2 tyg.', 'Pełne\nzamknięcie\n4 tyg.'],
+    datasets: [{
+      label: 'Brent (USD/bbl)',
+      data: [77.5, 81.2, 92, 105, 118],
+      backgroundColor: ['#68d391','#e94560','#dd6b20','#c05621','#9b2c2c'],
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ' $' + ctx.raw + '/bbl' } }
+    },
+    scales: {
+      y: { beginAtZero: false, min: 60, ticks: { callback: v => '$' + v }, grid: { color: '#e2e8f0' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// ── 3. SCENARIO PROBABILITY CHART ────────────────────────────────────────────
+new Chart(document.getElementById('scenarioChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['B: Pełzający konflikt (50–60%)', 'C: Implozja Iranu (15–20%)', 'D: Regionalizacja (10–15%)', 'A: Deeskalacja (10–15%)'],
+    datasets: [{
+      data: [55, 17, 13, 15],
+      backgroundColor: ['#e94560','#dd6b20','#9b2c2c','#276749'],
+      borderWidth: 2,
+      borderColor: '#fff',
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'right', labels: { font: { size: 11 }, padding: 12 } },
+      tooltip: { callbacks: { label: ctx => ' ' + ctx.label + ': ' + ctx.raw + '%' } }
+    }
+  }
+});
+
+// ── 4. MARKETS CHART ──────────────────────────────────────────────────────────
+new Chart(document.getElementById('marketsChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Brent\n(ropa)', 'WTI\n(ropa)', 'VLCC\n(stawki)', 'Dow\nJones', 'Złoto', 'Firmy\nobronny'],
+    datasets: [{
+      label: 'Zmiana %',
+      data: [+4.7, +4.7, +94, -2.9, +2.1, +8.3],
+      backgroundColor: ctx => ctx.raw >= 0 ? '#e94560' : '#276749',
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: ctx => (ctx.raw >= 0 ? '+' : '') + ctx.raw + '%' } }
+    },
+    scales: {
+      y: { ticks: { callback: v => v + '%' }, grid: { color: '#e2e8f0' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// ── 5. ORMUZ PIE ──────────────────────────────────────────────────────────────
+new Chart(document.getElementById('ormuzChart'), {
+  type: 'pie',
+  data: {
+    labels: ['Cieśnina Ormuz (~20%)', 'Morze Czerwone (~10%)', 'Inne trasy (~70%)'],
+    datasets: [{
+      data: [20, 10, 70],
+      backgroundColor: ['#e94560','#dd6b20','#bee3f8'],
+      borderWidth: 2,
+      borderColor: '#fff',
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } },
+      tooltip: { callbacks: { label: ctx => ' ' + ctx.label } }
+    }
+  }
+});
+
+// ── 6. RISK MATRIX (BUBBLE) ───────────────────────────────────────────────────
+new Chart(document.getElementById('riskMatrixChart'), {
+  type: 'bubble',
+  data: {
+    datasets: [
+      {
+        label: 'Ormuz',
+        data: [{ x: 3.5, y: 5, r: 18 }],
+        backgroundColor: 'rgba(233,69,96,0.8)',
+      },
+      {
+        label: 'Hezbollah',
+        data: [{ x: 4, y: 4, r: 15 }],
+        backgroundColor: 'rgba(233,69,96,0.7)',
+      },
+      {
+        label: 'Próżnia władzy Iran',
+        data: [{ x: 4, y: 4.5, r: 16 }],
+        backgroundColor: 'rgba(192,86,33,0.8)',
+      },
+      {
+        label: 'Szok naftowy',
+        data: [{ x: 3, y: 4.5, r: 14 }],
+        backgroundColor: 'rgba(192,86,33,0.7)',
+      },
+      {
+        label: 'Houthi / M. Czerwone',
+        data: [{ x: 4, y: 3.5, r: 13 }],
+        backgroundColor: 'rgba(221,107,32,0.7)',
+      },
+      {
+        label: 'Ataki poza regionem',
+        data: [{ x: 3, y: 3.5, r: 11 }],
+        backgroundColor: 'rgba(221,107,32,0.6)',
+      },
+      {
+        label: 'Destabilizacja Iraku',
+        data: [{ x: 2.5, y: 3, r: 9 }],
+        backgroundColor: 'rgba(151,90,22,0.6)',
+      },
+      {
+        label: 'Napięcia USA-Chiny',
+        data: [{ x: 2, y: 2.5, r: 8 }],
+        backgroundColor: 'rgba(151,90,22,0.5)',
+      },
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'right', labels: { font: { size: 10 }, padding: 8, boxWidth: 12 } },
+      tooltip: {
+        callbacks: {
+          label: ctx => ctx.dataset.label
+        }
+      }
+    },
+    scales: {
+      x: {
+        min: 0, max: 5,
+        title: { display: true, text: 'Prawdopodobieństwo →', font: { size: 11 } },
+        ticks: { callback: v => ['','Niskie','','Średnie','','Wysokie'][v] || '' },
+        grid: { color: '#e2e8f0' }
+      },
+      y: {
+        min: 0, max: 6,
+        title: { display: true, text: 'Skutki →', font: { size: 11 } },
+        ticks: { callback: v => ['','Lokalne','','Regionalne','','Globalne',''][v] || '' },
+        grid: { color: '#e2e8f0' }
+      }
+    }
+  }
+});
+</script>
 
 </body>
 </html>

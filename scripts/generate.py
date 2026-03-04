@@ -1,89 +1,133 @@
 #!/usr/bin/env python3
-import anthropic
-import json
 import os
 import re
+import json
+import urllib.request
+import urllib.parse
 from datetime import datetime, timezone
+from groq import Groq
 
-client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+# ── RSS feeds ────────────────────────────────────────────────────────────────
+FEEDS = [
+    "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/MiddleEast.xml",
+    "https://www.aljazeera.com/xml/rss/all.xml",
+    "https://feeds.reuters.com/reuters/topNews",
+]
 
-SYSTEM_PROMPT = """Jesteś analitykiem geopolitycznym specjalizującym się w Bliskim Wschodzie.
-Twoim zadaniem jest wygenerowanie aktualnego raportu analitycznego w języku polskim.
+KEYWORDS = [
+    "iran", "israel", "middle east", "hormuz", "hezbollah",
+    "tehran", "gaza", "lebanon", "houthi", "irgc", "khamenei",
+    "bliski wschód", "liban", "nuclear", "oil", "crude"
+]
 
-ZASADY:
-- Używaj web_search do zebrania najświeższych informacji z ostatnich 24 godzin
-- Opieraj się na źródłach: CFR, Chatham House, Al Jazeera, CNN, Reuters, BBC, CNBC
+def fetch_rss(url):
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            content = r.read().decode("utf-8", errors="ignore")
+        titles   = re.findall(r"<title><!\[CDATA\[(.*?)\]\]></title>|<title>(.*?)</title>", content)
+        descs    = re.findall(r"<description><!\[CDATA\[(.*?)\]\]></description>|<description>(.*?)</description>", content)
+        titles   = [a or b for a, b in titles]
+        descs    = [a or b for a, b in descs]
+        return list(zip(titles[1:], descs[1:]))  # skip feed title
+    except Exception as e:
+        print(f"RSS error {url}: {e}")
+        return []
 
-FORMAT: Zwróć WYŁĄCZNIE czysty JSON (bez markdown, bez backtick-ów):
-{
+def collect_news():
+    all_items = []
+    for feed in FEEDS:
+        items = fetch_rss(feed)
+        all_items.extend(items)
+
+    relevant = []
+    for title, desc in all_items:
+        text = (title + " " + desc).lower()
+        if any(kw in text for kw in KEYWORDS):
+            clean_desc = re.sub(r"<[^>]+>", "", desc).strip()[:200]
+            relevant.append(f"• {title.strip()} — {clean_desc}")
+
+    # deduplicate roughly
+    seen = set()
+    unique = []
+    for item in relevant:
+        key = item[:60]
+        if key not in seen:
+            seen.add(key)
+            unique.append(item)
+
+    return unique[:30]  # max 30 items
+
+# ── Groq call ────────────────────────────────────────────────────────────────
+def fetch_analysis(news_items):
+    client = Groq(api_key=os.environ["GROQ_API_KEY"])
+
+    news_text = "\n".join(news_items) if news_items else "Brak świeżych newsów z RSS."
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    prompt = f"""Jesteś analitykiem geopolitycznym. Na podstawie poniższych newsów z {today} wygeneruj raport o sytuacji na Bliskim Wschodzie.
+
+NEWSY:
+{news_text}
+
+Zwróć WYŁĄCZNIE czysty JSON (bez markdown, bez backtick-ów, bez komentarzy):
+{{
   "day_number": <liczba dni od 28 lutego 2026>,
-  "headline": "Krótki nagłówek najważniejszego zdarzenia dnia",
+  "headline": "Krótki nagłówek najważniejszego zdarzenia",
   "executive_summary": "2-3 zdania streszczenia sytuacji",
   "key_stats": [
-    {"label": "...", "value": "...", "trend": "up|down|neutral"}
+    {{"label": "...", "value": "...", "trend": "up|down|neutral"}}
   ],
   "timeline_today": [
-    {"time": "Rano/Południe/Wieczór lub HH:MM UTC", "title": "...", "detail": "...", "is_new": true}
+    {{"time": "Rano/Południe/Wieczór", "title": "...", "detail": "...", "is_new": true}}
   ],
   "actors": [
-    {"name": "...", "status": "active|passive|escalating|de-escalating", "summary": "..."}
+    {{"name": "...", "status": "active|passive|escalating|de-escalating", "summary": "..."}}
   ],
   "risks": [
-    {"name": "...", "probability": "aktywne|wysokie|średnie|niskie", "impact": "krytyczny|wysoki|średni", "status_change": "nowe|wzrost|bez zmian|spadek"}
+    {{"name": "...", "probability": "aktywne|wysokie|średnie|niskie", "impact": "krytyczny|wysoki|średni", "status_change": "nowe|wzrost|bez zmian|spadek"}}
   ],
   "scenarios": [
-    {"label": "...", "probability_label": "...", "description": "..."}
+    {{"label": "...", "probability_label": "...", "description": "..."}}
   ],
-  "energy_markets": {
+  "energy_markets": {{
     "brent": "...", "wti": "...", "hormuz_status": "...", "lng_europe": "..."
-  },
-  "sources_used": ["..."],
+  }},
+  "sources_used": ["BBC", "Al Jazeera", "Reuters", "NYT"],
   "alert_level": "krytyczny|wysoki|podwyższony|normalny",
   "alert_message": "Jedno zdanie opisujące główne zagrożenie"
-}"""
+}}"""
 
-USER_PROMPT = """Wyszukaj najnowsze informacje o sytuacji na Bliskim Wschodzie.
-Przeszukaj:
-1. "Middle East Iran Israel war latest news today"
-2. "Strait of Hormuz oil shipping update"
-3. "Iran supreme leader succession 2026"
-4. "Hezbollah Lebanon Israel strikes today"
-5. "oil price Brent crude today"
-
-Wygeneruj raport JSON zgodnie ze schematem. Data: """ + datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-
-def fetch_analysis():
-    print("Calling Claude API with web_search...")
-    response = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=4000,
-        system=SYSTEM_PROMPT,
-        tools=[{"type": "web_search_20250305", "name": "web_search"}],
-        messages=[{"role": "user", "content": USER_PROMPT}]
+    print(f"Sending {len(news_items)} news items to Groq...")
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=3000,
+        temperature=0.3,
     )
-    text = ""
-    for block in response.content:
-        if block.type == "text":
-            text = block.text
-    print(f"Response length: {len(text)} chars")
-    text = re.sub(r"^```json\s*", "", text.strip())
-    text = re.sub(r"^```\s*", "", text.strip())
-    text = re.sub(r"\s*```$", "", text.strip())
+
+    text = response.choices[0].message.content.strip()
+    text = re.sub(r"^```json\s*", "", text)
+    text = re.sub(r"^```\s*",     "", text)
+    text = re.sub(r"\s*```$",     "", text)
+
     return json.loads(text)
 
+# ── HTML renderer ────────────────────────────────────────────────────────────
 def render_html(data):
-    now_utc = datetime.now(timezone.utc).strftime("%d %B %Y, %H:%M UTC")
-    day_num = data.get("day_number", "?")
-    headline = data.get("headline", "Analiza Bliskiego Wschodu")
-    summary = data.get("executive_summary", "")
-    alert_level = data.get("alert_level", "wysoki")
+    now_utc    = datetime.now(timezone.utc).strftime("%d %B %Y, %H:%M UTC")
+    day_num    = data.get("day_number", "?")
+    headline   = data.get("headline", "Analiza Bliskiego Wschodu")
+    summary    = data.get("executive_summary", "")
+    alert_level   = data.get("alert_level", "wysoki")
     alert_message = data.get("alert_message", "")
 
     alert_colors = {
-        "krytyczny": ("#e94560", "#e9456018"),
-        "wysoki": ("#dd6b20", "#dd6b2018"),
+        "krytyczny":   ("#e94560", "#e9456018"),
+        "wysoki":      ("#dd6b20", "#dd6b2018"),
         "podwyższony": ("#d69e2e", "#d69e2e18"),
-        "normalny": ("#38a169", "#38a16918"),
+        "normalny":    ("#38a169", "#38a16918"),
     }
     alert_accent, alert_bg = alert_colors.get(alert_level, ("#e94560", "#e9456018"))
 
@@ -99,23 +143,23 @@ def render_html(data):
         new_tag = '<span class="new-tag">NOWE</span>' if item.get("is_new") else ""
         timeline_html += f'<div class="tl-item"><div class="tl-time">{item.get("time","")}</div><div class="tl-body"><div class="tl-title">{item.get("title","")} {new_tag}</div><div class="tl-detail">{item.get("detail","")}</div></div></div>'
 
-    status_color = {"active": "#e94560", "escalating": "#dd6b20", "passive": "#718096", "de-escalating": "#38a169"}
+    status_color = {"active":"#e94560","escalating":"#dd6b20","passive":"#718096","de-escalating":"#38a169"}
     actors_html = ""
     for a in data.get("actors", []):
-        color = status_color.get(a.get("status", "passive"), "#718096")
+        color = status_color.get(a.get("status","passive"), "#718096")
         actors_html += f'<div class="actor-card"><div class="actor-header"><span class="actor-name">{a.get("name","")}</span><span class="actor-status" style="color:{color}">⬤ {a.get("status","").upper()}</span></div><div class="actor-summary">{a.get("summary","")}</div></div>'
 
     risk_badge = {
-        "aktywne": ("AKTYWNE", "#1a1a2e", "#e94560"),
-        "wysokie": ("WYSOKIE", "#fed7d7", "#9b2c2c"),
-        "średnie": ("ŚREDNIE", "#fefcbf", "#975a16"),
-        "niskie": ("NISKIE", "#c6f6d5", "#276749"),
+        "aktywne": ("AKTYWNE","#1a1a2e","#e94560"),
+        "wysokie": ("WYSOKIE","#fed7d7","#9b2c2c"),
+        "średnie": ("ŚREDNIE","#fefcbf","#975a16"),
+        "niskie":  ("NISKIE", "#c6f6d5","#276749"),
     }
-    change_icon = {"nowe": "🆕", "wzrost": "⬆️", "bez zmian": "➡️", "spadek": "⬇️"}
+    change_icon = {"nowe":"🆕","wzrost":"⬆️","bez zmian":"➡️","spadek":"⬇️"}
     risks_html = ""
     for r in data.get("risks", []):
-        label, bg, fg = risk_badge.get(r.get("probability", ""), ("?", "#eee", "#333"))
-        icon = change_icon.get(r.get("status_change", ""), "")
+        label, bg, fg = risk_badge.get(r.get("probability",""), ("?","#eee","#333"))
+        icon = change_icon.get(r.get("status_change",""), "")
         risks_html += f'<tr><td>{r.get("name","")}</td><td><span class="badge" style="background:{bg};color:{fg}">{label}</span></td><td>{r.get("impact","")}</td><td>{icon} {r.get("status_change","")}</td></tr>'
 
     scenarios_html = ""
@@ -125,8 +169,7 @@ def render_html(data):
     em = data.get("energy_markets", {})
     energy_html = f'<div class="energy-grid"><div class="en-item"><div class="en-val">{em.get("brent","–")}</div><div class="en-lbl">Brent Crude</div></div><div class="en-item"><div class="en-val">{em.get("wti","–")}</div><div class="en-lbl">WTI Crude</div></div><div class="en-item"><div class="en-val">{em.get("hormuz_status","–")}</div><div class="en-lbl">Cieśnina Ormuz</div></div><div class="en-item"><div class="en-val">{em.get("lng_europe","–")}</div><div class="en-lbl">LNG Europa</div></div></div>'
 
-    sources = data.get("sources_used", [])
-    sources_html = " ".join(f"<span>{s}</span>" for s in sources)
+    sources_html = " ".join(f"<span>{s}</span>" for s in data.get("sources_used", []))
 
     return f"""<!DOCTYPE html>
 <html lang="pl">
@@ -248,12 +291,15 @@ footer{{border-top:1px solid var(--border);padding:24px 48px;text-align:center;f
     </div>
   </div>
 </div>
-<footer>⬡ Monitor Bliskiego Wschodu · Generowany automatycznie przez Claude AI · {now_utc}</footer>
+<footer>⬡ Monitor Bliskiego Wschodu · RSS + Groq AI · {now_utc}</footer>
 </body>
 </html>"""
 
 def main():
-    data = fetch_analysis()
+    print("Fetching RSS feeds...")
+    news = collect_news()
+    print(f"Found {len(news)} relevant items")
+    data = fetch_analysis(news)
     html = render_html(data)
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html)

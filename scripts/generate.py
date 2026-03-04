@@ -7,9 +7,9 @@ import urllib.parse
 from datetime import datetime, timezone
 from groq import Groq
 
-# ── CONFIG ───────────────────────────────────────────────────────────────────
-GROQ_KEY         = os.environ["GROQ_API_KEY"]
-ALPHA_VANTAGE    = os.environ.get("ALPHA_VANTAGE_KEY", "")
+GROQ_KEY      = os.environ["GROQ_API_KEY"]
+ALPHA_VANTAGE = os.environ.get("ALPHA_VANTAGE_KEY", "")
+BASE_REPORT_URL = "https://raw.githubusercontent.com/mikolaj-sz/mideast-monitor/main/base_report.html"
 
 FEEDS = [
     "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml",
@@ -17,50 +17,32 @@ FEEDS = [
     "https://www.aljazeera.com/xml/rss/all.xml",
     "https://feeds.reuters.com/reuters/topNews",
     "https://www.theguardian.com/world/middleeast/rss",
-    "https://feeds.ft.com/rss/home/uk",
 ]
 
 KEYWORDS = [
     "iran", "israel", "middle east", "hormuz", "hezbollah",
     "tehran", "gaza", "lebanon", "houthi", "irgc", "khamenei",
     "nuclear", "oil", "crude", "brent", "wti", "strait",
-    "sanctions", "missile", "strike", "attack", "war"
+    "missile", "strike", "attack", "war", "sanctions"
 ]
 
-BASE_CONTEXT = """
-KONTEKST BAZOWY (stan na 4 marca 2026, Dzień 5. konfliktu USA-Izrael-Iran):
+def fetch_base_report():
+    try:
+        req = urllib.request.Request(BASE_REPORT_URL, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            html = r.read().decode("utf-8", errors="ignore")
+        # Strip HTML tags, keep text
+        text = re.sub(r"<style[^>]*>.*?</style>", " ", html, flags=re.DOTALL)
+        text = re.sub(r"<script[^>]*>.*?</script>", " ", text, flags=re.DOTALL)
+        text = re.sub(r"<[^>]+>", " ", text)
+        text = re.sub(r"\s+", " ", text).strip()
+        # Keep first 6000 chars — most important context
+        print(f"Base report: {len(text)} chars, using first 6000")
+        return text[:6000]
+    except Exception as e:
+        print(f"Base report error: {e}")
+        return ""
 
-KLUCZOWE FAKTY:
-- 28 lutego 2026: USA i Izrael rozpoczęły Operację Epic Fury / Roaring Lion
-- Zginął Najwyższy Przywódca Iranu Ali Chamenei oraz dziesiątki seniorów IRGC
-- Iran zaatakował 27 baz USA w regionie Zatoki Perskiej
-- Hezbollah otworzył front w Libanie (40 zabitych, 246 rannych)
-- Cieśnina Ormuz faktycznie zamknięta od 2 marca — zero tankowców AIS
-- 700+ ofiar w Iranie, 6 żołnierzy USA zginęło, 11 zabitych w Izraelu
-- Brent $81/bbl (+4.7%), VLCC rates +94% rekord, Dow Jones -900 pkt
-- Iran zaatakował ambasadę USA w Rijadzie (3 drony, ograniczone szkody)
-- Trump: operacja 4-5 tygodni. Rubio: eskalacja w ciągu godzin i dni
-- Larijani (Iran): brak negocjacji z USA
-- 1900+ lotów odwołanych dziennie, 1M+ pasażerów uwięzionych
-- Izrael uderza jednocześnie w Teheran i Bejrut
-- Pałac Golestan (UNESCO) i siedziba IRIB trafione
-- Kuwait omyłkowo zestrzelił 3 samoloty F-35 USA (załogi przeżyły)
-- Goldman Sachs: rynek wycenia 4-tygodniowe 100% zamknięcie Ormuz, premia $13/bbl
-
-AKTYWNE FRONTY:
-- Iran ↔ Izrael (kampania powietrzna)
-- Iran ↔ USA (27 baz w Zatoce)
-- Hezbollah ↔ Izrael (Liban)
-- Iran ↔ Arabia Saudyjska (Aramco, Rijad)
-- Cieśnina Ormuz (morski)
-
-SUKCESJA W IRANIE:
-- Tymczasowa Rada: Pezeshkian, Mohseni-Ejei, Arafi
-- Kandydaci na Najwyższego Przywódcę: Mohseni-Ejei, Hassan Chomeini, Mojtaba Chamenei
-- Zgromadzenie Ekspertów musi zebrać się w warunkach wojennych
-"""
-
-# ── RSS ───────────────────────────────────────────────────────────────────────
 def fetch_rss(url):
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -68,9 +50,15 @@ def fetch_rss(url):
             content = r.read().decode("utf-8", errors="ignore")
         titles = re.findall(r"<title><!\[CDATA\[(.*?)\]\]></title>|<title>(.*?)</title>", content)
         descs  = re.findall(r"<description><!\[CDATA\[(.*?)\]\]></description>|<description>(.*?)</description>", content)
+        links  = re.findall(r"<link>(.*?)</link>", content)
         titles = [a or b for a, b in titles]
         descs  = [a or b for a, b in descs]
-        return list(zip(titles[1:], descs[1:]))
+        links  = [l for l in links if l.startswith("http")][1:]
+        result = []
+        for i, (title, desc) in enumerate(zip(titles[1:], descs[1:])):
+            link = links[i] if i < len(links) else ""
+            result.append((title, desc, link))
+        return result
     except Exception as e:
         print(f"RSS error {url}: {e}")
         return []
@@ -81,17 +69,16 @@ def collect_news():
         all_items.extend(fetch_rss(feed))
     relevant = []
     seen = set()
-    for title, desc in all_items:
+    for title, desc, link in all_items:
         text = (title + " " + desc).lower()
         if any(kw in text for kw in KEYWORDS):
             key = title.strip()[:60]
             if key not in seen:
                 seen.add(key)
-                clean = re.sub(r"<[^>]+>", "", desc).strip()[:300]
-                relevant.append(f"• {title.strip()} — {clean}")
+                clean = re.sub(r"<[^>]+>", "", desc).strip()[:200]
+                relevant.append({"title": title.strip(), "desc": clean, "url": link})
     return relevant[:40]
 
-# ── GDELT ─────────────────────────────────────────────────────────────────────
 def fetch_gdelt():
     try:
         query = urllib.parse.quote("Iran Israel war Hormuz")
@@ -99,73 +86,60 @@ def fetch_gdelt():
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=15) as r:
             data = json.loads(r.read())
-        articles = data.get("articles", [])
         items = []
-        for a in articles[:10]:
+        for a in data.get("articles", [])[:10]:
             title = a.get("title", "")
-            source = a.get("domain", "")
             if title:
-                items.append(f"• [{source}] {title}")
+                items.append({"title": f"[{a.get('domain','')}] {title}", "desc": "", "url": a.get("url","")})
         print(f"GDELT: {len(items)} articles")
         return items
     except Exception as e:
         print(f"GDELT error: {e}")
         return []
 
-# ── OIL PRICES ────────────────────────────────────────────────────────────────
 def fetch_oil_prices():
     if not ALPHA_VANTAGE:
         return {"brent": "N/A", "wti": "N/A"}
     try:
-        # WTI
-        url_wti = f"https://www.alphavantage.co/query?function=WTI&interval=daily&apikey={ALPHA_VANTAGE}"
-        with urllib.request.urlopen(url_wti, timeout=10) as r:
-            wti_data = json.loads(r.read())
-        wti_price = wti_data.get("data", [{}])[0].get("value", "N/A")
-
-        # Brent
-        url_brent = f"https://www.alphavantage.co/query?function=BRENT&interval=daily&apikey={ALPHA_VANTAGE}"
-        with urllib.request.urlopen(url_brent, timeout=10) as r:
-            brent_data = json.loads(r.read())
-        brent_price = brent_data.get("data", [{}])[0].get("value", "N/A")
-
-        print(f"Oil prices — Brent: ${brent_price}, WTI: ${wti_price}")
+        with urllib.request.urlopen(f"https://www.alphavantage.co/query?function=WTI&interval=daily&apikey={ALPHA_VANTAGE}", timeout=10) as r:
+            wti_price = json.loads(r.read()).get("data", [{}])[0].get("value", "N/A")
+        with urllib.request.urlopen(f"https://www.alphavantage.co/query?function=BRENT&interval=daily&apikey={ALPHA_VANTAGE}", timeout=10) as r:
+            brent_price = json.loads(r.read()).get("data", [{}])[0].get("value", "N/A")
+        print(f"Oil: Brent ${brent_price}, WTI ${wti_price}")
         return {
             "brent": f"${brent_price}/bbl" if brent_price != "N/A" else "N/A",
             "wti":   f"${wti_price}/bbl"   if wti_price   != "N/A" else "N/A",
         }
     except Exception as e:
-        print(f"Oil price error: {e}")
+        print(f"Oil error: {e}")
         return {"brent": "N/A", "wti": "N/A"}
 
-# ── GROQ ANALYSIS ─────────────────────────────────────────────────────────────
-def fetch_analysis(news_items, gdelt_items, oil_prices):
+def fetch_analysis(base_report, news_items, gdelt_items, oil_prices):
     client = Groq(api_key=GROQ_KEY)
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-
     all_news = news_items + gdelt_items
-    news_text = "\n".join(all_news) if all_news else "Brak nowych newsów."
-
-    brent_live = oil_prices.get("brent", "~$81/bbl")
-    wti_live   = oil_prices.get("wti",   "~$74/bbl")
+    news_text = "\n".join([f"• {n['title']} — {n['desc']}" for n in all_news]) if all_news else "Brak nowych newsów."
+    brent_live = oil_prices.get("brent", "N/A")
+    wti_live   = oil_prices.get("wti",   "N/A")
 
     prompt = f"""Jesteś analitykiem geopolitycznym. Dziś jest {today}.
 Aktualne ceny ropy: Brent {brent_live}, WTI {wti_live}
 
-{BASE_CONTEXT}
+RAPORT BAZOWY (poprzednia aktualizacja — traktuj jako punkt wyjścia):
+{base_report}
 
-NAJNOWSZE NEWSY (RSS + GDELT, ostatnie 24h):
+NAJNOWSZE NEWSY Z OSTATNICH GODZIN (RSS + GDELT):
 {news_text}
 
-Na podstawie kontekstu bazowego ORAZ najnowszych newsów wygeneruj szczegółowy, aktualny raport.
-Uwzględnij zmiany od stanu bazowego. Bądź konkretny — podawaj fakty, liczby, nazwy.
-Użyj aktualnych cen ropy podanych powyżej.
+Na podstawie raportu bazowego ORAZ najnowszych newsów wygeneruj zaktualizowany raport.
+Zachowaj ciągłość z raportem bazowym, uwzględnij nowe zdarzenia z newsów.
+Bądź konkretny — podawaj fakty, liczby, nazwy.
 
 Zwróć WYŁĄCZNIE czysty JSON (bez markdown, bez backtick-ów):
 {{
   "day_number": <liczba dni od 28 lutego 2026>,
-  "headline": "Konkretny nagłówek najważniejszego zdarzenia z ostatnich godzin",
-  "executive_summary": "2-3 zdania konkretnego streszczenia aktualnej sytuacji z faktami",
+  "headline": "Konkretny nagłówek najważniejszego nowego zdarzenia",
+  "executive_summary": "2-3 zdania streszczenia aktualnej sytuacji z faktami",
   "key_stats": [
     {{"label": "Ofiary w Iranie", "value": "700+", "trend": "up"}},
     {{"label": "Brent Crude", "value": "{brent_live}", "trend": "up"}},
@@ -175,18 +149,18 @@ Zwróć WYŁĄCZNIE czysty JSON (bez markdown, bez backtick-ów):
     {{"label": "Dzień konfliktu", "value": "5", "trend": "neutral"}}
   ],
   "timeline_today": [
-    {{"time": "06:00 UTC", "title": "...", "detail": "szczegółowy opis z faktami", "is_new": true}},
-    {{"time": "10:00 UTC", "title": "...", "detail": "szczegółowy opis z faktami", "is_new": true}},
-    {{"time": "14:00 UTC", "title": "...", "detail": "szczegółowy opis z faktami", "is_new": true}},
-    {{"time": "18:00 UTC", "title": "...", "detail": "szczegółowy opis z faktami", "is_new": false}}
+    {{"time": "06:00 UTC", "title": "...", "detail": "szczegółowy opis", "is_new": true}},
+    {{"time": "10:00 UTC", "title": "...", "detail": "szczegółowy opis", "is_new": true}},
+    {{"time": "14:00 UTC", "title": "...", "detail": "szczegółowy opis", "is_new": true}},
+    {{"time": "18:00 UTC", "title": "...", "detail": "szczegółowy opis", "is_new": false}}
   ],
   "actors": [
-    {{"name": "USA", "status": "active", "summary": "konkretny opis działań i pozycji USA"}},
-    {{"name": "Izrael", "status": "escalating", "summary": "konkretny opis działań Izraela"}},
-    {{"name": "Iran/IRGC", "status": "active", "summary": "konkretny opis działań i sytuacji wewnętrznej"}},
-    {{"name": "Hezbollah", "status": "escalating", "summary": "konkretny opis działań w Libanie"}},
-    {{"name": "Arabia Saudyjska", "status": "passive", "summary": "stanowisko i sytuacja po atakach na Aramco"}},
-    {{"name": "Rosja/Chiny", "status": "passive", "summary": "stanowisko dyplomatyczne i interesy"}}
+    {{"name": "USA", "status": "active", "summary": "..."}},
+    {{"name": "Izrael", "status": "escalating", "summary": "..."}},
+    {{"name": "Iran/IRGC", "status": "active", "summary": "..."}},
+    {{"name": "Hezbollah", "status": "escalating", "summary": "..."}},
+    {{"name": "Arabia Saudyjska", "status": "passive", "summary": "..."}},
+    {{"name": "Rosja/Chiny", "status": "passive", "summary": "..."}}
   ],
   "risks": [
     {{"name": "Zamknięcie Cieśniny Ormuz", "probability": "aktywne", "impact": "krytyczny", "status_change": "bez zmian"}},
@@ -194,27 +168,26 @@ Zwróć WYŁĄCZNIE czysty JSON (bez markdown, bez backtick-ów):
     {{"name": "Szok naftowy Brent $100+", "probability": "wysokie", "impact": "krytyczny", "status_change": "wzrost"}},
     {{"name": "Próżnia władzy w Iranie", "probability": "wysokie", "impact": "krytyczny", "status_change": "bez zmian"}},
     {{"name": "Starcie morskie USA-Iran", "probability": "średnie", "impact": "krytyczny", "status_change": "nowe"}},
-    {{"name": "Ataki na infrastrukturę Aramco", "probability": "wysokie", "impact": "krytyczny", "status_change": "wzrost"}},
-    {{"name": "Eskalacja poza regionem", "probability": "średnie", "impact": "wysoki", "status_change": "bez zmian"}}
+    {{"name": "Ataki na infrastrukturę Aramco", "probability": "wysokie", "impact": "krytyczny", "status_change": "wzrost"}}
   ],
   "scenarios": [
-    {{"label": "A. Szybka deeskalacja", "probability_label": "Niskie (10-15%)", "description": "Trump ogłasza sukces po eliminacji infrastruktury nuklearnej. Iran wyłania umiarkowanego przywódcę gotowego do rozmów. Ormuz otwiera się w ciągu tygodnia."}},
-    {{"label": "B. Konflikt 4-5 tygodni", "probability_label": "Najwyższe (60-65%)", "description": "USA/Izrael kontynuują systematyczne uderzenia przez 4-5 tygodni zgodnie z harmonogramem Trumpa. Iran utrzymuje blokadę Ormuz. Brent przekracza $90-100. Dyplomacja wraca po wyczerpaniu obu stron."}},
-    {{"label": "C. Starcie morskie w Ormuz", "probability_label": "Rosnące (15-20%)", "description": "Iran atakuje konwoje US Navy eskortujące tankowce. Bezpośrednie starcie morskie — precedens w historii Ormuz. Ryzyko wciągnięcia Chin chroniących własne tankowce."}},
-    {{"label": "D. Implozja Iranu", "probability_label": "Niskie (5-10%)", "description": "Protesty przeradzają się w rewolucję. IRGC zachowuje strukturę dowodzenia. Brak zorganizowanej opozycji zdolnej do demokratycznej tranzycji."}}
+    {{"label": "A. Szybka deeskalacja", "probability_label": "Niskie (10-15%)", "description": "Trump ogłasza sukces, Iran wyłania umiarkowanego przywódcę, Ormuz otwiera się."}},
+    {{"label": "B. Konflikt 4-5 tygodni", "probability_label": "Najwyższe (60-65%)", "description": "Systematyczne uderzenia, blokada Ormuz, Brent $90-100, dyplomacja po wyczerpaniu."}},
+    {{"label": "C. Starcie morskie w Ormuz", "probability_label": "Rosnące (15-20%)", "description": "Iran atakuje konwoje US Navy, bezpośrednie starcie morskie, ryzyko wciągnięcia Chin."}},
+    {{"label": "D. Implozja Iranu", "probability_label": "Niskie (5-10%)", "description": "Protesty przeradzają się w rewolucję, IRGC zachowuje strukturę, brak demokratycznej opozycji."}}
   ],
   "energy_markets": {{
     "brent": "{brent_live}",
     "wti": "{wti_live}",
-    "hormuz_status": "Faktycznie zamknięta od 2 marca",
-    "lng_europe": "+20% (niedobory Qatar LNG)"
+    "hormuz_status": "Zamknięta od 2 marca",
+    "lng_europe": "+20% (niedobory)"
   }},
-  "sources_used": ["BBC", "Al Jazeera", "Reuters", "NYT", "Guardian", "FT", "GDELT"],
+  "sources_used": ["BBC", "Al Jazeera", "Reuters", "NYT", "Guardian", "GDELT", "Alpha Vantage"],
   "alert_level": "krytyczny",
-  "alert_message": "Cieśnina Ormuz zamknięta Dzień 3. — 20% globalnych dostaw ropy zagrożone, ryzyko starcia morskiego USA-Iran"
+  "alert_message": "Cieśnina Ormuz zamknięta — 20% globalnych dostaw ropy zagrożone"
 }}"""
 
-    print(f"Sending to Groq ({len(all_news)} news items)...")
+    print(f"Sending to Groq ({len(all_news)} news + base report)...")
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
@@ -227,8 +200,7 @@ Zwróć WYŁĄCZNIE czysty JSON (bez markdown, bez backtick-ów):
     text = re.sub(r"\s*```$", "", text)
     return json.loads(text)
 
-# ── HTML ──────────────────────────────────────────────────────────────────────
-def render_html(data, oil_prices):
+def render_html(data, oil_prices, news_items, gdelt_items):
     now_utc       = datetime.now(timezone.utc).strftime("%d %B %Y, %H:%M UTC")
     day_num       = data.get("day_number", "?")
     headline      = data.get("headline", "Analiza Bliskiego Wschodu")
@@ -287,6 +259,15 @@ def render_html(data, oil_prices):
       <div class="en-item"><div class="en-val">{em.get("lng_europe","–")}</div><div class="en-lbl">LNG Europa</div></div>
     </div>'''
 
+    all_news = news_items + gdelt_items
+    news_links_html = ""
+    for n in all_news[:25]:
+        url = n.get("url", "")
+        title = n.get("title", "")
+        desc = n.get("desc", "")
+        if url and title:
+            news_links_html += f'<div class="news-item"><a href="{url}" target="_blank" rel="noopener">{title}</a>{"<div class=news-desc>" + desc + "</div>" if desc else ""}</div>'
+
     sources_html = " ".join(f"<span>{s}</span>" for s in data.get("sources_used", []))
 
     return f"""<!DOCTYPE html>
@@ -316,8 +297,7 @@ header{{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-
 .al-level{{font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:'Syne',sans-serif;font-weight:700;color:{alert_accent};margin-bottom:4px;}}
 .al-msg{{font-size:14px;color:var(--text);font-weight:500;}}
 .stats-strip{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}}
-.stat-card{{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 16px;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);transition:box-shadow .2s;}}
-.stat-card:hover{{box-shadow:0 4px 12px rgba(0,0,0,0.08);}}
+.stat-card{{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 16px;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);}}
 .stat-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent);}}
 .stat-value{{font-family:'Syne',sans-serif;font-size:21px;font-weight:800;color:var(--text);}}
 .stat-label{{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:4px;line-height:1.3;}}
@@ -334,33 +314,36 @@ header{{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-
 .sh-accent{{width:3px;height:16px;background:var(--accent);border-radius:2px;flex-shrink:0;}}
 .section-body{{padding:18px 22px;}}
 .tl-item{{display:flex;gap:16px;padding:12px 0;border-bottom:1px solid var(--border);}}
-.tl-item:last-child{{border:none;padding-bottom:0;}}
+.tl-item:last-child{{border:none;}}
 .tl-time{{flex-shrink:0;width:80px;font-size:11px;font-weight:600;color:var(--accent);font-family:'Syne',sans-serif;padding-top:2px;}}
 .tl-title{{font-size:14px;font-weight:500;margin-bottom:4px;color:var(--text);}}
 .tl-detail{{font-size:13px;color:var(--muted);line-height:1.65;}}
 .new-tag{{background:var(--accent);color:white;font-size:9px;font-weight:700;letter-spacing:1px;padding:1px 7px;border-radius:4px;margin-left:7px;vertical-align:middle;font-family:'Syne',sans-serif;}}
 .actor-card{{padding:13px 0;border-bottom:1px solid var(--border);}}
-.actor-card:last-child{{border:none;padding-bottom:0;}}
+.actor-card:last-child{{border:none;}}
 .actor-header{{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}}
 .actor-name{{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--text);}}
 .actor-status{{font-size:10px;letter-spacing:1px;font-family:'Syne',sans-serif;font-weight:700;}}
 .actor-summary{{font-size:13px;color:var(--muted);line-height:1.65;}}
 .risk-table{{width:100%;border-collapse:collapse;font-size:13px;}}
 .risk-table th{{text-align:left;padding:9px 10px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);background:#fafaf8;font-weight:500;}}
-.risk-table td{{padding:10px 10px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:top;}}
+.risk-table td{{padding:10px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:top;}}
 .risk-table tr:last-child td{{border:none;}}
 .risk-table tr:hover td{{background:#fafaf8;}}
 .badge{{display:inline-block;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.5px;font-family:'Syne',sans-serif;}}
-.scenario-card{{padding:16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;transition:box-shadow .2s;}}
+.scenario-card{{padding:16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;}}
 .scenario-card:last-child{{margin:0;}}
-.scenario-card:hover{{box-shadow:0 2px 8px rgba(0,0,0,0.07);}}
 .sc-label{{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;}}
 .sc-prob{{font-size:11px;color:var(--accent);font-weight:600;letter-spacing:.5px;margin-bottom:6px;}}
 .sc-desc{{font-size:13px;color:var(--muted);line-height:1.65;}}
+.news-item{{padding:10px 0;border-bottom:1px solid var(--border);}}
+.news-item:last-child{{border:none;}}
+.news-item a{{font-size:13px;font-weight:500;color:var(--accent);text-decoration:none;line-height:1.5;display:block;}}
+.news-item a:hover{{text-decoration:underline;color:#922b21;}}
+.news-desc{{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;}}
 .sources-strip{{padding:14px 22px;font-size:11px;color:var(--muted);line-height:2.2;}}
-.sources-strip span{{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 9px;margin:2px;font-size:11px;}}
+.sources-strip span{{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 9px;margin:2px;}}
 footer{{border-top:1px solid var(--border);padding:28px 48px;text-align:center;font-size:12px;color:var(--muted);background:var(--surface);}}
-footer strong{{color:#4b5563;}}
 @media(max-width:900px){{
   header{{padding:0 20px;}}
   .hero{{grid-template-columns:1fr;padding:40px 20px 24px;gap:24px;}}
@@ -378,7 +361,7 @@ footer strong{{color:#4b5563;}}
 </header>
 <div class="hero">
   <div>
-    <div class="day-label">Dzień {day_num} konfliktu · Raport automatyczny · RSS + GDELT + Alpha Vantage</div>
+    <div class="day-label">Dzień {day_num} konfliktu · Baza HTML + RSS + GDELT + Alpha Vantage + Groq AI</div>
     <h1 class="hero-headline">{headline}</h1>
     <p class="hero-summary">{summary}</p>
     <div class="alert-box">
@@ -409,6 +392,10 @@ footer strong{{color:#4b5563;}}
         </table>
       </div>
     </div>
+    <div class="section">
+      <div class="section-head"><div class="sh-accent"></div><h2>Artykuły źródłowe ({len(all_news)})</h2></div>
+      <div class="section-body">{news_links_html}</div>
+    </div>
   </div>
   <div class="col-right">
     <div class="section">
@@ -425,31 +412,21 @@ footer strong{{color:#4b5563;}}
     </div>
   </div>
 </div>
-<footer>
-  <strong>⬡ Monitor Bliskiego Wschodu</strong> · RSS (BBC/AJ/Reuters/NYT/Guardian/FT) + GDELT + Alpha Vantage + Groq AI<br>
-  Generowany automatycznie co 5 godzin · {now_utc}
-</footer>
+<footer>⬡ Monitor Bliskiego Wschodu · Baza HTML + RSS + GDELT + Alpha Vantage + Groq AI · {now_utc}</footer>
 </body>
 </html>"""
 
-# ── MAIN ──────────────────────────────────────────────────────────────────────
 def main():
     print("=== Middle East Monitor ===")
-    print("Fetching RSS feeds...")
+    print("Fetching base report...")
+    base = fetch_base_report()
+    print("Fetching RSS...")
     news = collect_news()
-    print(f"RSS: {len(news)} relevant items")
-
-    print("Fetching GDELT...")
+    print(f"RSS: {len(news)} items")
     gdelt = fetch_gdelt()
-
-    print("Fetching oil prices...")
     oil = fetch_oil_prices()
-
-    print("Generating analysis with Groq...")
-    data = fetch_analysis(news, gdelt, oil)
-
-    print("Rendering HTML...")
-    html = render_html(data, oil)
+    data = fetch_analysis(base, news, gdelt, oil)
+    html = render_html(data, oil, news, gdelt)
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html)
     print("✓ index.html written")

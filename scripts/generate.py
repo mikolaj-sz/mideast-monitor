@@ -2,71 +2,124 @@
 import os
 import re
 import json
-from datetime import datetime, timezone
 import urllib.request
+from datetime import datetime, timezone
+
+FEEDS = [
+    "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/MiddleEast.xml",
+    "https://www.aljazeera.com/xml/rss/all.xml",
+    "https://feeds.reuters.com/reuters/topNews",
+    "https://www.ft.com/rss/home",
+]
+
+KEYWORDS = [
+    "iran", "israel", "middle east", "hormuz", "hezbollah",
+    "tehran", "gaza", "lebanon", "houthi", "irgc", "khamenei",
+    "nuclear", "oil", "crude", "brent", "wti"
+]
+
+def fetch_rss(url):
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            content = r.read().decode("utf-8", errors="ignore")
+        titles = re.findall(r"<title><!\[CDATA\[(.*?)\]\]></title>|<title>(.*?)</title>", content)
+        descs  = re.findall(r"<description><!\[CDATA\[(.*?)\]\]></description>|<description>(.*?)</description>", content)
+        titles = [a or b for a, b in titles]
+        descs  = [a or b for a, b in descs]
+        return list(zip(titles[1:], descs[1:]))
+    except Exception as e:
+        print(f"RSS error {url}: {e}")
+        return []
+
+def collect_news():
+    all_items = []
+    for feed in FEEDS:
+        all_items.extend(fetch_rss(feed))
+    relevant = []
+    seen = set()
+    for title, desc in all_items:
+        text = (title + " " + desc).lower()
+        if any(kw in text for kw in KEYWORDS):
+            key = title.strip()[:60]
+            if key not in seen:
+                seen.add(key)
+                clean = re.sub(r"<[^>]+>", "", desc).strip()[:300]
+                relevant.append(f"• {title.strip()} — {clean}")
+    return relevant[:40]
 
 def call_gemini(prompt):
     api_key = os.environ["GEMINI_API_KEY"]
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
     body = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
-        "tools": [{"google_search": {}}],
         "generationConfig": {"temperature": 0.3, "maxOutputTokens": 3000}
     }).encode()
     req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=60) as r:
         return json.loads(r.read())
 
-def extract_text(response):
-    try:
-        return response["candidates"][0]["content"]["parts"][0]["text"]
-    except Exception:
-        print("Full response:", json.dumps(response, indent=2)[:1000])
-        raise
-
-def fetch_analysis():
+def fetch_analysis(news_items):
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    news_text = "\n".join(news_items) if news_items else "Brak świeżych newsów."
+
     prompt = f"""Jesteś analitykiem geopolitycznym. Dziś jest {today}.
 
-Wyszukaj najnowsze informacje o:
-1. Konflikcie USA-Izrael-Iran (ostatnie 24h)
-2. Sytuacji w Libanie i Hezbollah
-3. Cieśninie Ormuz i cenach ropy
-4. Sukcesji po Chamenej'im
-5. Aktualnych cenach Brent i WTI
+Na podstawie poniższych newsów wygeneruj szczegółowy raport o sytuacji na Bliskim Wschodzie.
+Bądź konkretny — podawaj nazwy, liczby, fakty z newsów.
 
-Na podstawie znalezionych informacji wygeneruj raport.
+NEWSY:
+{news_text}
+
 Zwróć WYŁĄCZNIE czysty JSON (bez markdown, bez backtick-ów):
 {{
   "day_number": <liczba dni od 28 lutego 2026>,
-  "headline": "Krótki nagłówek najważniejszego zdarzenia",
-  "executive_summary": "2-3 zdania streszczenia sytuacji",
+  "headline": "Konkretny nagłówek najważniejszego zdarzenia z dzisiaj",
+  "executive_summary": "2-3 zdania konkretnego streszczenia na podstawie newsów",
   "key_stats": [
-    {{"label": "...", "value": "...", "trend": "up|down|neutral"}}
+    {{"label": "Ofiary w Iranie", "value": "700+", "trend": "up"}},
+    {{"label": "Cena Brent", "value": "$81/bbl", "trend": "up"}},
+    {{"label": "Loty odwołane", "value": "1900+/dzień", "trend": "up"}},
+    {{"label": "Bazy USA zaatakowane", "value": "27", "trend": "neutral"}}
   ],
   "timeline_today": [
-    {{"time": "Rano/Południe/Wieczór lub HH:MM UTC", "title": "...", "detail": "...", "is_new": true}}
+    {{"time": "Rano", "title": "...", "detail": "...", "is_new": true}}
   ],
   "actors": [
-    {{"name": "...", "status": "active|passive|escalating|de-escalating", "summary": "..."}}
+    {{"name": "USA", "status": "active", "summary": "..."}},
+    {{"name": "Izrael", "status": "escalating", "summary": "..."}},
+    {{"name": "Iran", "status": "active", "summary": "..."}},
+    {{"name": "Hezbollah", "status": "escalating", "summary": "..."}},
+    {{"name": "Rosja/Chiny", "status": "passive", "summary": "..."}}
   ],
   "risks": [
-    {{"name": "...", "probability": "aktywne|wysokie|średnie|niskie", "impact": "krytyczny|wysoki|średni", "status_change": "nowe|wzrost|bez zmian|spadek"}}
+    {{"name": "Zamknięcie Cieśniny Ormuz", "probability": "aktywne", "impact": "krytyczny", "status_change": "bez zmian"}},
+    {{"name": "Front libański", "probability": "aktywne", "impact": "wysoki", "status_change": "wzrost"}},
+    {{"name": "Szok naftowy Brent $100+", "probability": "wysokie", "impact": "krytyczny", "status_change": "wzrost"}},
+    {{"name": "Próżnia władzy w Iranie", "probability": "wysokie", "impact": "krytyczny", "status_change": "bez zmian"}},
+    {{"name": "Ataki poza regionem", "probability": "średnie", "impact": "wysoki", "status_change": "nowe"}}
   ],
   "scenarios": [
-    {{"label": "...", "probability_label": "...", "description": "..."}}
+    {{"label": "Szybka deeskalacja", "probability_label": "Niskie prawdopodobieństwo", "description": "..."}},
+    {{"label": "Konflikt 4-5 tygodni", "probability_label": "Najwyższe prawdopodobieństwo", "description": "..."}},
+    {{"label": "Starcie morskie w Ormuz", "probability_label": "Rosnące ryzyko", "description": "..."}}
   ],
   "energy_markets": {{
-    "brent": "...", "wti": "...", "hormuz_status": "...", "lng_europe": "..."
+    "brent": "...", "wti": "...", "hormuz_status": "Faktycznie zamknięta", "lng_europe": "..."
   }},
-  "sources_used": ["..."],
-  "alert_level": "krytyczny|wysoki|podwyższony|normalny",
-  "alert_message": "Jedno zdanie opisujące główne zagrożenie"
+  "sources_used": ["BBC", "Al Jazeera", "Reuters", "NYT", "FT"],
+  "alert_level": "krytyczny",
+  "alert_message": "Konkretne zdanie opisujące główne zagrożenie na dziś"
 }}"""
 
-    print("Calling Gemini with Google Search...")
+    print("Calling Gemini (no grounding)...")
     response = call_gemini(prompt)
-    text = extract_text(response)
+    try:
+        text = response["candidates"][0]["content"]["parts"][0]["text"]
+    except Exception:
+        print("Response:", json.dumps(response, indent=2)[:500])
+        raise
     print(f"Response length: {len(text)} chars")
     text = re.sub(r"^```json\s*", "", text.strip())
     text = re.sub(r"^```\s*", "", text.strip())
@@ -249,13 +302,15 @@ footer{{border-top:1px solid var(--border);padding:24px 48px;text-align:center;f
     </div>
   </div>
 </div>
-<footer>⬡ Monitor Bliskiego Wschodu · Gemini AI + Google Search · {now_utc}</footer>
+<footer>⬡ Monitor Bliskiego Wschodu · RSS + Gemini AI · {now_utc}</footer>
 </body>
 </html>"""
 
 def main():
-    print("Fetching analysis from Gemini with Google Search...")
-    data = fetch_analysis()
+    print("Fetching RSS feeds...")
+    news = collect_news()
+    print(f"Found {len(news)} relevant items")
+    data = fetch_analysis(news)
     html = render_html(data)
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html)
